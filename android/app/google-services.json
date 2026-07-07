@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "142209637999",
+    "project_id": "fundi-connect-af6ff",
+    "storage_bucket": "fundi-connect-af6ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142209637999:android:808e9144b1716f2d37379a",
+        "android_client_info": {
+          "package_name": "com.example.fundi_connect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoPabV-XOcmrazeg4fWzLPoHvyTLmbuHM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
