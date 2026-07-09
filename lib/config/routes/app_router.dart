@@ -6,6 +6,7 @@ import '../../features/auth/screens/create_account_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/verify_phone_screen.dart';
+import '../../features/bookings/screens/booking_detail_screen.dart';
 import '../../features/bookings/screens/bookings_screen.dart';
 import '../../features/bookings/screens/confirm_booking_screen.dart';
 import '../../features/bookings/screens/worker_dashboard_screen.dart';
@@ -14,7 +15,9 @@ import '../../features/discover/screens/search_results_screen.dart';
 import '../../features/discover/screens/worker_detail_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/profile/screens/settings_screen.dart';
 import '../../core/widgets/shell_scaffold.dart';
 
 /// Application router.
@@ -87,6 +90,12 @@ class AppRouter {
             builder: (context, state) => const BookingsScreen(),
             routes: [
               GoRoute(
+                path: ':id',
+                builder: (context, state) => BookingDetailScreen(
+                  bookingId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
                 path: 'confirm',
                 builder: (context, state) => const ConfirmBookingScreen(),
               ),
@@ -99,6 +108,16 @@ class AppRouter {
           GoRoute(
             path: RouteNames.profile,
             builder: (context, state) => const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) => const EditProfileScreen(),
+              ),
+              GoRoute(
+                path: 'settings',
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),

@@ -26,6 +26,11 @@ class RouteNames {
   static const String workerDetail = '$discover/worker/:id';
 
   // Booking sub-flows
+  static const String bookingDetail = '$bookings/:id';
   static const String confirmBooking = '$bookings/confirm';
   static const String workerDashboard = '$bookings/dashboard';
+
+  // Profile sub-flows
+  static const String editProfile = '$profile/edit';
+  static const String settings = '$profile/settings';
 }

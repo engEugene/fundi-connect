@@ -18,6 +18,11 @@ class BookingsScreen extends StatelessWidget {
             const Text('Bookings Screen', style: TextStyle(fontSize: 24)),
             const SizedBox(height: 16),
             ElevatedButton(
+              onPressed: () => context.go('${RouteNames.bookings}/1'),
+              child: const Text('Open Booking Detail'),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
               onPressed: () => context.go(RouteNames.confirmBooking),
               child: const Text('Confirm Booking'),
             ),
