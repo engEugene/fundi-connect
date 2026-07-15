@@ -90,8 +90,8 @@ class _OnboardingPageBody extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const SizedBox(height: 8),
           OnboardingHero(imageAsset: data.imageAsset, badges: data.badges),
           const SizedBox(height: 20),
           Text.rich(
@@ -120,6 +120,7 @@ class _OnboardingPageBody extends StatelessWidget {
             textAlign: TextAlign.center,
             style: AppTextStyles.onboardingBody,
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -153,7 +154,7 @@ class _OnboardingBottomSheet extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         24,
-        28,
+        20,
         24,
         20 + MediaQuery.of(context).padding.bottom,
       ),
