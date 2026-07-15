@@ -21,9 +21,7 @@ class RouteNames {
   static const String bookings = '/bookings';
   static const String profile = '/profile';
 
-  // Discover sub-flows
-  static const String searchResults = '$discover/search';
-
+  // Worker public profile (full-screen, no bottom nav)
   static const String workerDetail = '/worker/:id';
 
   // Booking sub-flows

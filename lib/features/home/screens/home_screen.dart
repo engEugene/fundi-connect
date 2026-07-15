@@ -206,8 +206,6 @@ class _SpecialOfferCard extends StatelessWidget {
 class _SearchBar extends StatelessWidget {
   const _SearchBar();
 
-  void _goToSearch(BuildContext context) => context.push(RouteNames.searchResults);
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -228,7 +226,7 @@ class _SearchBar extends StatelessWidget {
           Expanded(
             child: TextField(
               textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _goToSearch(context),
+              onSubmitted: (_) => context.go(RouteNames.discover),
               style: AppTextStyles.bodyMedium,
               cursorColor: AppColors.primary,
               decoration: InputDecoration(
@@ -248,7 +246,7 @@ class _SearchBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => _goToSearch(context),
+            onTap: () => context.go(RouteNames.discover),
             child: Container(
               width: 44,
               height: 44,
