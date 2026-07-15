@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme/app_colors.dart';
 import '../../config/theme/app_text_styles.dart';
 import '../models/worker.dart';
+import '../utils/formatters.dart';
 
 class WorkerCard extends StatelessWidget {
   const WorkerCard({
@@ -14,14 +15,8 @@ class WorkerCard extends StatelessWidget {
   final Worker worker;
   final VoidCallback? onTap;
 
-  String get _formattedPrice {
-    final value = worker.hourlyRate.toStringAsFixed(0);
-    final withCommas = value.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (match) => ',',
-    );
-    return '$withCommas Rwf/hr';
-  }
+  String get _formattedPrice =>
+      '${Formatters.formatNumber(worker.hourlyRate)} Rwf/hr';
 
   @override
   Widget build(BuildContext context) {
