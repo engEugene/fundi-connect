@@ -42,29 +42,26 @@ class OnboardingHero extends StatelessWidget {
               ),
             ),
           ),
-          // Avatar with gold ring.
+          // Avatar — ring is already baked into the exported image, so we
+          // just place it at full size without adding another border.
           Align(
             alignment: const Alignment(0, -0.05),
-            child: Container(
+            child: SizedBox(
               width: avatarSize,
               height: avatarSize,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.secondary, width: 3),
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  imageAsset,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
+              child: Image.asset(
+                imageAsset,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
                     color: AppColors.primaryLight,
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white54,
-                      size: 40,
-                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.person,
+                    color: Colors.white54,
+                    size: 40,
                   ),
                 ),
               ),
