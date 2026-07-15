@@ -120,7 +120,7 @@ class _OnboardingPageBody extends StatelessWidget {
             textAlign: TextAlign.center,
             style: AppTextStyles.onboardingBody,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -150,13 +150,16 @@ class _OnboardingBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Container(
       width: double.infinity,
+      height: screenHeight * 0.32,
       padding: EdgeInsets.fromLTRB(
         24,
-        20,
+        28,
         24,
-        20 + MediaQuery.of(context).padding.bottom,
+        16 + MediaQuery.of(context).padding.bottom,
       ),
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -166,7 +169,7 @@ class _OnboardingBottomSheet extends StatelessWidget {
         ),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -184,35 +187,39 @@ class _OnboardingBottomSheet extends StatelessWidget {
               );
             }),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: onPrimaryPressed,
-            child: Text(primaryLabel),
-          ),
-          const SizedBox(height: 14),
-          if (showSignInPrompt)
-            Text.rich(
-              TextSpan(
-                text: 'Already have an account? ',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                children: [
-                  TextSpan(
-                    text: 'Sign In',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    recognizer: TapGestureRecognizer()..onTap = onSignIn,
-                  ),
-                ],
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: onPrimaryPressed,
+                child: Text(primaryLabel),
               ),
-            )
-          else if (showSkip)
-            TextButton(onPressed: onSkip, child: const Text('Skip'))
-          else
-            const SizedBox(height: 20),
+              const SizedBox(height: 14),
+              if (showSignInPrompt)
+                Text.rich(
+                  TextSpan(
+                    text: 'Already have an account? ',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: 'Sign In',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        recognizer: TapGestureRecognizer()..onTap = onSignIn,
+                      ),
+                    ],
+                  ),
+                )
+              else if (showSkip)
+                TextButton(onPressed: onSkip, child: const Text('Skip'))
+              else
+                const SizedBox(height: 20),
+            ],
+          ),
         ],
       ),
     );
