@@ -26,6 +26,61 @@ class Worker {
   final bool isVerified;
   final bool isOpen;
 
+  static const List<Worker> discover = [
+    Worker(
+      id: 'd1',
+      name: 'Jean Pierre Habimana',
+      role: 'Electrician',
+      category: 'Electrician',
+      imageUrl: 'https://i.pravatar.cc/300?img=11',
+      rating: 4.9,
+      reviewCount: 56,
+      distanceKm: 0.8,
+      hourlyRate: 6000,
+      isVerified: true,
+      isOpen: false,
+    ),
+    Worker(
+      id: 'd2',
+      name: 'Emmanuel Nkurunziza',
+      role: 'Electrician',
+      category: 'Electrician',
+      imageUrl: 'https://i.pravatar.cc/300?img=13',
+      rating: 4.7,
+      reviewCount: 41,
+      distanceKm: 1.2,
+      hourlyRate: 5500,
+      isVerified: true,
+      isOpen: false,
+    ),
+    Worker(
+      id: 'd3',
+      name: 'Claudine Mukamana',
+      role: 'Electrician',
+      category: 'Electrician',
+      imageUrl: 'https://i.pravatar.cc/300?img=5',
+      rating: 4.5,
+      reviewCount: 29,
+      distanceKm: 2.1,
+      hourlyRate: 4800,
+      isVerified: false,
+      isOpen: false,
+    ),
+    Worker(
+      id: 'd4',
+      name: 'Patrick Nsabimana',
+      role: 'Electrician',
+      category: 'Electrician',
+      imageUrl: 'https://i.pravatar.cc/300?img=14',
+      rating: 4.3,
+      reviewCount: 17,
+      distanceKm: 3.0,
+      hourlyRate: 4000,
+      isVerified: true,
+      isOpen: false,
+    ),
+  ];
+
   static const List<Worker> nearby = [
     Worker(
       id: '1',

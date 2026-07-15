@@ -14,8 +14,14 @@ class WorkerCard extends StatelessWidget {
   final Worker worker;
   final VoidCallback? onTap;
 
-  String get _formattedPrice =>
-      '${worker.hourlyRate.toStringAsFixed(0)} Rwf/hr';
+  String get _formattedPrice {
+    final value = worker.hourlyRate.toStringAsFixed(0);
+    final withCommas = value.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (match) => ',',
+    );
+    return '$withCommas Rwf/hr';
+  }
 
   @override
   Widget build(BuildContext context) {
