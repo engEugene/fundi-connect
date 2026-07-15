@@ -60,6 +60,14 @@ class AppRouter {
         builder: (context, state) => const VerifyPhoneScreen(),
       ),
 
+      // Worker public profile (full-screen, no bottom nav)
+      GoRoute(
+        path: RouteNames.workerDetail,
+        builder: (context, state) => WorkerDetailScreen(
+          workerId: state.pathParameters['id']!,
+        ),
+      ),
+
       // Main app shell with bottom navigation
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -76,12 +84,6 @@ class AppRouter {
               GoRoute(
                 path: 'search',
                 builder: (context, state) => const SearchResultsScreen(),
-              ),
-              GoRoute(
-                path: 'worker/:id',
-                builder: (context, state) => WorkerDetailScreen(
-                  workerId: state.pathParameters['id']!,
-                ),
               ),
             ],
           ),

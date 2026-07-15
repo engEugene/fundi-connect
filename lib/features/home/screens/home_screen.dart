@@ -46,7 +46,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               _NearbyTradesmenList(
                 onWorkerTap: (worker) => context.push(
-                  '${RouteNames.discover}/worker/${worker.id}',
+                  '/worker/${worker.id}',
                 ),
               ),
               const SizedBox(height: 24),

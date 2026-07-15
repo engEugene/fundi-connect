@@ -23,7 +23,8 @@ class RouteNames {
 
   // Discover sub-flows
   static const String searchResults = '$discover/search';
-  static const String workerDetail = '$discover/worker/:id';
+
+  static const String workerDetail = '/worker/:id';
 
   // Booking sub-flows
   static const String bookingDetail = '$bookings/:id';

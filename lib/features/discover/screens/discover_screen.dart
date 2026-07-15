@@ -26,7 +26,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   void _onWorkerTap(Worker worker) {
-    context.push('worker/${worker.id}');
+    context.push('/worker/${worker.id}');
   }
 
   @override
