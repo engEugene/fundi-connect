@@ -11,7 +11,6 @@ import '../../features/bookings/screens/bookings_screen.dart';
 import '../../features/bookings/screens/confirm_booking_screen.dart';
 import '../../features/bookings/screens/worker_dashboard_screen.dart';
 import '../../features/discover/screens/discover_screen.dart';
-import '../../features/discover/screens/search_results_screen.dart';
 import '../../features/discover/screens/worker_detail_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
@@ -60,6 +59,14 @@ class AppRouter {
         builder: (context, state) => const VerifyPhoneScreen(),
       ),
 
+      // Worker public profile (full-screen, no bottom nav)
+      GoRoute(
+        path: RouteNames.workerDetail,
+        builder: (context, state) => WorkerDetailScreen(
+          workerId: state.pathParameters['id']!,
+        ),
+      ),
+
       // Main app shell with bottom navigation
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -72,18 +79,6 @@ class AppRouter {
           GoRoute(
             path: RouteNames.discover,
             builder: (context, state) => const DiscoverScreen(),
-            routes: [
-              GoRoute(
-                path: 'search',
-                builder: (context, state) => const SearchResultsScreen(),
-              ),
-              GoRoute(
-                path: 'worker/:id',
-                builder: (context, state) => WorkerDetailScreen(
-                  workerId: state.pathParameters['id']!,
-                ),
-              ),
-            ],
           ),
           GoRoute(
             path: RouteNames.bookings,
