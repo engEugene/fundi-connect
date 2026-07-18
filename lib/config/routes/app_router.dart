@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'route_names.dart';
 import '../../features/auth/screens/create_account_screen.dart';
+import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/verify_phone_screen.dart';
@@ -56,15 +57,21 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.verifyPhone,
-        builder: (context, state) => const VerifyPhoneScreen(),
+        builder: (context, state) => VerifyPhoneScreen(
+          dialCode: state.uri.queryParameters['dial'],
+          localPhoneNumber: state.uri.queryParameters['phone'],
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       // Worker public profile (full-screen, no bottom nav)
       GoRoute(
         path: RouteNames.workerDetail,
-        builder: (context, state) => WorkerDetailScreen(
-          workerId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            WorkerDetailScreen(workerId: state.pathParameters['id']!),
       ),
 
       // Main app shell with bottom navigation
@@ -86,9 +93,8 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: ':id',
-                builder: (context, state) => BookingDetailScreen(
-                  bookingId: state.pathParameters['id']!,
-                ),
+                builder: (context, state) =>
+                    BookingDetailScreen(bookingId: state.pathParameters['id']!),
               ),
               GoRoute(
                 path: 'confirm',

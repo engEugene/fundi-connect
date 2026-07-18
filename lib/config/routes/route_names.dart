@@ -14,6 +14,7 @@ class RouteNames {
   static const String signIn = '$auth/sign-in';
   static const String createAccount = '$auth/create-account';
   static const String verifyPhone = '$auth/verify-phone';
+  static const String forgotPassword = '$auth/forgot-password';
 
   // Main shell (bottom nav)
   static const String home = '/home';
