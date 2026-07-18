@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/routes/route_names.dart';
+import '../../../config/theme/app_colors.dart';
+import '../../../config/theme/app_text_styles.dart';
+import '../../auth/providers/auth_provider.dart';
 
 /// Owner: Profile team (Feature 5)
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: Center(
@@ -25,6 +29,22 @@ class ProfileScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () => context.go(RouteNames.settings),
               child: const Text('Settings'),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(authProvider.notifier).signOut();
+                context.go(RouteNames.onboarding);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.errorBright,
+                foregroundColor: AppColors.textPrimary,
+                textStyle: AppTextStyles.button.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Log Out'),
             ),
           ],
         ),
