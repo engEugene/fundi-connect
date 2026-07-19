@@ -56,8 +56,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: _pages.length,
-                onPageChanged: (index) =>
-                    setState(() => _currentPage = index),
+                onPageChanged: (index) => setState(() => _currentPage = index),
                 itemBuilder: (context, index) {
                   return _OnboardingPageBody(data: _pages[index]);
                 },
@@ -87,42 +86,56 @@ class _OnboardingPageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          OnboardingHero(imageAsset: data.imageAsset, badges: data.badges),
-          const SizedBox(height: 20),
-          Text.rich(
-            TextSpan(
-              children: [
-                for (final line in data.titleLines) ...[
-                  TextSpan(
-                    text: line.text,
-                    style: AppTextStyles.headlineLarge.copyWith(
-                      color: line.accent
-                          ? AppColors.secondary
-                          : AppColors.textOnDark,
-                      fontWeight: FontWeight.w800,
-                      height: 1.25,
-                    ),
+    // stops hero image from pushing text off screen on small phones
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OnboardingHero(
+                    imageAsset: data.imageAsset,
+                    badges: data.badges,
                   ),
-                  if (line != data.titleLines.last) const TextSpan(text: '\n'),
+                  const SizedBox(height: 20),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        for (final line in data.titleLines) ...[
+                          TextSpan(
+                            text: line.text,
+                            style: AppTextStyles.headlineLarge.copyWith(
+                              color: line.accent
+                                  ? AppColors.secondary
+                                  : AppColors.textOnDark,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
+                            ),
+                          ),
+                          if (line != data.titleLines.last)
+                            const TextSpan(text: '\n'),
+                        ],
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    data.subtitle,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.onboardingBody,
+                  ),
+                  const SizedBox(height: 24),
                 ],
-              ],
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 14),
-          Text(
-            data.subtitle,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.onboardingBody,
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
+        );
+      },
     );
   }
 }

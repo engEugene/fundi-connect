@@ -1,29 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'auth_state.dart';
+enum UserRole { client, worker }
 
-/// Owner: Auth team (Feature 2)
-///
-/// Replace this mock logic with Firebase Auth calls when the backend is ready.
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier();
-});
+// role stays here, signed-in state comes from firebase later
+class AuthState {
+  const AuthState({this.selectedRole = UserRole.client});
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState());
+  final UserRole selectedRole;
+}
 
-  void selectRole(UserRole role) {
-    state = state.copyWith(selectedRole: role);
-  }
+// using Notifier bcs StateNotifier got removed in rvpd 3
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);
 
-  Future<void> signInWithEmail(String email, String password) async {
-    state = state.copyWith(status: AuthStatus.loading);
-    // TODO: call Firebase Auth
-    await Future.delayed(const Duration(seconds: 1));
-    state = state.copyWith(status: AuthStatus.authenticated);
-  }
+class AuthNotifier extends Notifier<AuthState> {
+  @override
+  AuthState build() => const AuthState();
 
-  void signOut() {
-    state = const AuthState(status: AuthStatus.unauthenticated);
-  }
+  void selectRole(UserRole role) => state = AuthState(selectedRole: role);
+
+  // TODO: also call firebase signout
+  void signOut() => state = const AuthState();
 }
