@@ -46,3 +46,4 @@ app.*.map.json
 
 # Temp files
 /misc
+ARCHITECTURE.md
