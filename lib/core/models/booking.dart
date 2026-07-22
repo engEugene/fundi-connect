@@ -15,6 +15,10 @@ class Booking {
     this.platformFee = 0,
     this.paymentMethod,
     this.isRated = false,
+    this.clientName = 'Client',
+    this.clientImageUrl = '',
+    this.description = '',
+    this.estimatedHours = 1,
   });
 
   final String id;
@@ -28,6 +32,10 @@ class Booking {
   final double platformFee;
   final String? paymentMethod;
   final bool isRated;
+  final String clientName;
+  final String clientImageUrl;
+  final String description;
+  final int estimatedHours;
 
   double get total => serviceFee + platformFee;
 

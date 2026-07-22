@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/routes/route_names.dart';
-import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_text_styles.dart';
-import '../../../core/models/review.dart';
-import '../../../core/models/worker.dart';
-import '../../../core/utils/formatters.dart';
-import '../../../core/widgets/review_card.dart';
+import '../../../../config/routes/route_names.dart';
+import '../../../../config/theme/app_colors.dart';
+import '../../../../config/theme/app_text_styles.dart';
+import '../../../../core/models/review.dart';
+import '../../../../core/models/worker.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/review_card.dart';
 
 
 class WorkerDetailScreen extends StatelessWidget {

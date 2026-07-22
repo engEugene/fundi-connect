@@ -1,6 +1,6 @@
-import '../../../core/models/worker.dart';
+import '../../../../core/models/worker.dart';
 
-/// Mock signed-in user for the profile UI.
+/// Mock signed-in tradesman for the tradesman profile UI.
 ///
 /// Firebase will replace this later; for now the profile screens read from here
 /// so the layout can be built and reviewed without a backend.

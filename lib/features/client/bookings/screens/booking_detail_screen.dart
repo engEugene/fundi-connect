@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/routes/route_names.dart';
-import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_text_styles.dart';
-import '../../../core/models/booking.dart';
-import '../../../core/utils/formatters.dart';
+import '../../../../config/routes/route_names.dart';
+import '../../../../config/theme/app_colors.dart';
+import '../../../../config/theme/app_text_styles.dart';
+import '../../../../core/models/booking.dart';
+import '../../../../core/utils/formatters.dart';
 
 class BookingDetailScreen extends StatelessWidget {
   const BookingDetailScreen({super.key, required this.bookingId});

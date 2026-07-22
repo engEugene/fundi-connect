@@ -2,23 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/routes/route_names.dart';
-import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_text_styles.dart';
-import '../../../core/models/review.dart';
-import '../../../core/models/worker.dart';
-import '../../../core/utils/formatters.dart';
-import '../../../core/widgets/review_card.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../../config/routes/route_names.dart';
+import '../../../../config/theme/app_colors.dart';
+import '../../../../config/theme/app_text_styles.dart';
+import '../../../../core/models/review.dart';
+import '../../../../core/models/worker.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/review_card.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../data/profile_mock.dart';
-import '../widgets/profile_widgets.dart';
 
-/// Owner: Profile team (Feature 5)
+/// Tradesman Profile tab.
 ///
-/// The signed-in user's own profile. Mirrors the public worker profile layout
-/// but swaps "Book Now" for the owner actions: edit, settings and log out.
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+/// Shows the tradesman's own profile preview, stats, reviews, and links to
+/// edit the profile or sign out.
+class TradesmanProfileScreen extends ConsumerWidget {
+  const TradesmanProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,12 +26,12 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('My Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push(RouteNames.settings),
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Profile',
+            onPressed: () => context.push(RouteNames.editProfile),
           ),
         ],
       ),
@@ -46,13 +45,16 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               _StatsRow(user: user),
               const SizedBox(height: 20),
-              _ActionRow(
-                onEdit: () => context.push(RouteNames.editProfile),
-                onSettings: () => context.push(RouteNames.settings),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => context.push(RouteNames.editProfile),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Edit Profile'),
+                ),
               ),
               const SizedBox(height: 24),
-
-              const ProfileSectionTitle('About'),
+              Text('About', style: AppTextStyles.titleMedium),
               const SizedBox(height: 8),
               Text(
                 user.about ??
@@ -62,15 +64,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
               if (user.pastWorkUrls.isNotEmpty) ...[
-                const ProfileSectionTitle('Past Work'),
+                Text('Past Work', style: AppTextStyles.titleMedium),
                 const SizedBox(height: 12),
                 _PastWorkRow(imageUrls: user.pastWorkUrls),
                 const SizedBox(height: 24),
               ],
-
-              const ProfileSectionTitle('Reviews'),
+              Text('Reviews', style: AppTextStyles.titleMedium),
               const SizedBox(height: 12),
               for (final review in Review.sample)
                 Padding(
@@ -78,7 +78,6 @@ class ProfileScreen extends ConsumerWidget {
                   child: ReviewCard(review: review),
                 ),
               const SizedBox(height: 12),
-
               OutlinedButton.icon(
                 onPressed: () {
                   ref.read(authProvider.notifier).signOut();
@@ -99,7 +98,6 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-/// Navy card holding avatar, name, trade chips and headline figures.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({required this.user});
 
@@ -315,43 +313,6 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-/// Edit / Settings shortcuts sitting under the stats.
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.onEdit, required this.onSettings});
-
-  final VoidCallback onEdit;
-  final VoidCallback onSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Edit Profile'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onSettings,
-            icon: const Icon(Icons.settings_outlined, size: 18),
-            label: const Text('Settings'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _PastWorkRow extends StatelessWidget {
   const _PastWorkRow({required this.imageUrls});
 
@@ -363,9 +324,38 @@ class _PastWorkRow extends StatelessWidget {
       children: [
         for (var i = 0; i < imageUrls.length; i++) ...[
           if (i > 0) const SizedBox(width: 12),
-          Expanded(child: PortfolioTile(imageUrl: imageUrls[i])),
+          Expanded(
+            child: _PortfolioImage(imageUrl: imageUrls[i]),
+          ),
         ],
       ],
+    );
+  }
+}
+
+class _PortfolioImage extends StatelessWidget {
+  const _PortfolioImage({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: AppColors.tertiary,
+            child: const Icon(
+              Icons.broken_image_outlined,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

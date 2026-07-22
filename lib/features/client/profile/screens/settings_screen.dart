@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/routes/route_names.dart';
-import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_text_styles.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../../config/routes/route_names.dart';
+import '../../../../config/theme/app_colors.dart';
+import '../../../../config/theme/app_text_styles.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../data/profile_mock.dart';
-import '../widgets/profile_widgets.dart';
+import '../../../../core/widgets/profile_widgets.dart';
 
-/// Owner: Profile team (Feature 5)
-///
-/// Preferences, role switching and log out. Toggles are local state only until
-/// Firebase lands.
+/// Owner: Profile team 
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 

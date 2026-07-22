@@ -2,22 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/theme/app_colors.dart';
-import '../../../config/theme/app_text_styles.dart';
+import '../../../../config/theme/app_colors.dart';
+import '../../../../config/theme/app_text_styles.dart';
+import '../../../../core/widgets/profile_widgets.dart';
 import '../data/profile_mock.dart';
-import '../widgets/profile_widgets.dart';
 
-
-/// Form for editing the signed-in tradesman's own profile. Saving is a no-op
-/// until Firebase lands — the button only validates and shows a confirmation.
-class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+/// Tradesman Edit Profile screen.
+///
+/// Lets a tradesman update their name, trade category, hourly rate, location,
+/// bio, and portfolio photos. Saving is a no-op until Firebase lands.
+class TradesmanEditProfileScreen extends StatefulWidget {
+  const TradesmanEditProfileScreen({super.key});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  State<TradesmanEditProfileScreen> createState() => _TradesmanEditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _TradesmanEditProfileScreenState
+    extends State<TradesmanEditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
@@ -54,7 +56,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
-    // TODO: persist to Firestore once the backend phase starts.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile saved')),
     );
@@ -65,7 +66,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: const Text('Edit Profile'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -77,7 +78,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              Center(child: _AvatarPicker(imageUrl: ProfileMock.currentUser.imageUrl)),
+              Center(
+                child: _AvatarPicker(
+                  imageUrl: ProfileMock.currentUser.imageUrl,
+                ),
+              ),
               const SizedBox(height: 24),
               VerifiedBadge(
                 label: 'Verified Tradesman',
@@ -96,7 +101,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 validator: (value) => (value == null || value.trim().isEmpty)
                     ? 'Enter your full name'
                     : null,
-                decoration: const InputDecoration(hintText: 'Jean Pierre Habimana'),
+                decoration:
+                    const InputDecoration(hintText: 'Jean Pierre Habimana'),
               ),
               const SizedBox(height: 20),
 
@@ -105,8 +111,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 initialValue: _category,
                 icon: const Icon(Icons.keyboard_arrow_down),
                 style: AppTextStyles.bodyLarge,
-                // keep the popup a compact card instead of a full-bleed list
-                // that swallows the form behind it
                 menuMaxHeight: 220,
                 borderRadius: BorderRadius.circular(12),
                 elevation: 2,
@@ -176,7 +180,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 style: AppTextStyles.bodyLarge,
                 cursorColor: AppColors.primary,
                 decoration: const InputDecoration(
-                  hintText: 'Licensed electrician with 6+ years of experience...',
+                  hintText:
+                      'Licensed electrician with 6+ years of experience...',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -209,7 +214,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // TODO: swap for image_picker once uploads are wired to Cloud Storage.
   void _addPhoto() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Photo upload comes with the backend phase')),
@@ -217,7 +221,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 }
 
-/// Circular avatar with the gold camera badge from the design.
 class _AvatarPicker extends StatelessWidget {
   const _AvatarPicker({required this.imageUrl});
 
@@ -274,7 +277,6 @@ class _AvatarPicker extends StatelessWidget {
   }
 }
 
-/// Three-across grid of portfolio tiles, always showing one empty slot.
 class _PortfolioGrid extends StatelessWidget {
   const _PortfolioGrid({
     required this.imageUrls,
