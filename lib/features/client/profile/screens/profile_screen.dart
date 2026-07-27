@@ -78,9 +78,9 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 12),
 
               OutlinedButton.icon(
-                onPressed: () {
-                  ref.read(authProvider.notifier).signOut();
-                  context.go(RouteNames.onboarding);
+                onPressed: () async {
+                  await ref.read(authProvider.notifier).signOut();
+                  if (context.mounted) context.go(RouteNames.onboarding);
                 },
                 icon: const Icon(Icons.logout, size: 20),
                 label: const Text('Log Out'),

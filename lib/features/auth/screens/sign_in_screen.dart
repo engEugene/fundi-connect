@@ -8,7 +8,6 @@ import '../providers/auth_forms_provider.dart';
 import '../widgets/auth_fields.dart';
 import '../widgets/auth_widgets.dart';
 
-// StatefulWidget only to clean up controllers, no setState used
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -34,20 +33,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final ok = await ref
+    final user = await ref
         .read(signInFormProvider.notifier)
         .signInWithEmail(_email.text.trim(), _password.text);
 
-    if (!mounted || !ok) return;
-    // go to clear the auth stack
-    context.go(RouteNames.home);
-  }
-
-  Future<void> _google() async {
-    FocusScope.of(context).unfocus();
-    final ok = await ref.read(signInFormProvider.notifier).signInWithGoogle();
-    if (!mounted || !ok) return;
-    context.go(RouteNames.home);
+    if (!mounted || user == null) return;
+    if (user.emailVerified) {
+      context.go(RouteNames.home);
+    } else {
+      context.push(RouteNames.verifyEmail);
+    }
   }
 
   @override
@@ -111,18 +106,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 AuthSubmitButton(
                   label: 'Sign In',
                   loading: form.submitting,
-                  enabled: !form.googleSubmitting,
                   onPressed: _submit,
                 ),
                 const SizedBox(height: 24),
-                const OrDivider(),
-                const SizedBox(height: 24),
-                GoogleSignInButton(
-                  loading: form.googleSubmitting,
-                  enabled: !form.submitting,
-                  onPressed: _google,
-                ),
-                const SizedBox(height: 8),
                 AuthFooterPrompt(
                   question: "Don't have an account?",
                   actionLabel: 'Create Account',

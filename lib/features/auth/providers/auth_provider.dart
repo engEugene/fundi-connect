@@ -1,8 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/app_user.dart';
+import '../data/auth_repository.dart';
 
 export '../../../core/models/app_user.dart' show UserRole;
+
+/// Repository provider. Overridable for tests.
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository();
+});
 
 /// Auth state shared by both clients and tradesmen.
 ///
@@ -12,10 +20,15 @@ class AuthState {
   const AuthState({
     this.selectedRole = UserRole.client,
     this.authenticatedUser,
+    this.initializing = true,
   });
 
   final UserRole selectedRole;
   final AppUser? authenticatedUser;
+
+  /// True while the provider is checking the cached Firebase session.
+  /// Used by the router to decide whether to show a splash screen.
+  final bool initializing;
 
   bool get isAuthenticated => authenticatedUser != null;
 
@@ -24,32 +37,58 @@ class AuthState {
   AuthState copyWith({
     UserRole? selectedRole,
     AppUser? authenticatedUser,
+    bool? initializing,
+    bool clearUser = false,
   }) {
     return AuthState(
       selectedRole: selectedRole ?? this.selectedRole,
-      authenticatedUser: authenticatedUser ?? this.authenticatedUser,
+      authenticatedUser: clearUser ? null : (authenticatedUser ?? this.authenticatedUser),
+      initializing: initializing ?? this.initializing,
     );
   }
 }
 
-// using Notifier because StateNotifier was removed in Riverpod 3
-final authProvider = NotifierProvider<AuthNotifier, AuthState>(
-  AuthNotifier.new,
-);
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
 class AuthNotifier extends Notifier<AuthState> {
+  StreamSubscription<AppUser?>? _authSubscription;
+
+  AuthRepository get _repository => ref.read(authRepositoryProvider);
+
   @override
-  AuthState build() => const AuthState();
+  AuthState build() {
+    // Subscribe to Firebase auth state changes once.
+    _authSubscription?.cancel();
+    _authSubscription = _repository.authStateChanges().listen(
+      (user) {
+        state = state.copyWith(
+          authenticatedUser: user,
+          initializing: false,
+        );
+      },
+      onError: (_) {
+        state = state.copyWith(initializing: false);
+      },
+    );
+
+    ref.onDispose(() => _authSubscription?.cancel());
+
+    return const AuthState();
+  }
 
   void selectRole(UserRole role) =>
       state = state.copyWith(selectedRole: role);
 
-  /// Called after a successful Firebase Auth sign-in.
+  /// Called by the repository-backed form providers after a successful sign-in
+  /// or sign-up so the app reacts immediately instead of waiting for the stream.
   void signIn(AppUser user) => state = state.copyWith(
         authenticatedUser: user,
         selectedRole: user.role,
+        initializing: false,
       );
 
-  // TODO: also call firebase signout
-  void signOut() => state = const AuthState();
+  Future<void> signOut() async {
+    await _repository.signOut();
+    state = state.copyWith(clearUser: true);
+  }
 }

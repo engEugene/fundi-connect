@@ -53,17 +53,8 @@ class _CreateAccountState extends ConsumerState<CreateAccountScreen> {
         );
 
     if (!mounted) return;
-    switch (outcome) {
-      case SignUpOutcome.awaitingOtp:
-        context.push(
-          '${RouteNames.verifyPhone}'
-          '?dial=${Uri.encodeComponent(_dialCode.text)}'
-          '&phone=${Uri.encodeComponent(_phone.text)}',
-        );
-      case SignUpOutcome.completed:
-        context.go(RouteNames.home);
-      case SignUpOutcome.failed:
-        break;
+    if (outcome == SignUpOutcome.success) {
+      context.push(RouteNames.verifyEmail);
     }
   }
 
@@ -143,12 +134,6 @@ class _CreateAccountState extends ConsumerState<CreateAccountScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _OtpToggle(
-                  value: form.verifyViaOtp,
-                  enabled: !busy,
-                  onChanged: notifier.setVerifyViaOtp,
-                ),
-                const SizedBox(height: 24),
                 AuthSubmitButton(
                   label: 'Create Account',
                   loading: busy,
@@ -171,50 +156,3 @@ class _CreateAccountState extends ConsumerState<CreateAccountScreen> {
   }
 }
 
-class _OtpToggle extends StatelessWidget {
-  const _OtpToggle({
-    required this.value,
-    required this.onChanged,
-    required this.enabled,
-  });
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.tertiary,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Verify via OTP', style: AppTextStyles.titleMedium),
-                const SizedBox(height: 2),
-                Text(
-                  'Send code to your phone',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: enabled ? onChanged : null,
-            activeThumbColor: AppColors.onPrimary,
-            activeTrackColor: AppColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
