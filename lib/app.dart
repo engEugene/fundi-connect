@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'config/routes/app_router.dart';
 import 'config/theme/app_theme.dart';
+import 'features/auth/providers/auth_provider.dart';
 
-class FundiConnectApp extends StatelessWidget {
+class FundiConnectApp extends ConsumerWidget {
   const FundiConnectApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch auth state so the router rebuilds on sign-in / sign-out.
+    ref.watch(authProvider);
+    final router = ref.watch(routerProvider);
+
     return MaterialApp.router(
       title: 'Fundi Connect',
       debugShowCheckedModeBanner: false,
-      routerConfig: AppRouter.router,
+      routerConfig: router,
       theme: AppTheme.lightTheme,
     );
   }
