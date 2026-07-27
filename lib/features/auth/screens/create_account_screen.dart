@@ -7,10 +7,10 @@ import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../domain/validators.dart';
 import '../providers/auth_forms_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/auth_fields.dart';
 import '../widgets/auth_widgets.dart';
 
-// back arrow goes to role select, not onboarding
 class CreateAccountScreen extends ConsumerStatefulWidget {
   const CreateAccountScreen({super.key});
 
@@ -42,12 +42,19 @@ class _CreateAccountState extends ConsumerState<CreateAccountScreen> {
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final outcome = await ref.read(signUpFormProvider.notifier).submit();
+    final role = ref.read(authProvider).selectedRole;
+    final outcome = await ref.read(signUpFormProvider.notifier).submit(
+          name: _name.text,
+          email: _email.text,
+          password: _password.text,
+          dialCode: _dialCode.text,
+          localPhone: _phone.text,
+          role: role,
+        );
 
     if (!mounted) return;
     switch (outcome) {
       case SignUpOutcome.awaitingOtp:
-        // using query params not extra so deep links work too
         context.push(
           '${RouteNames.verifyPhone}'
           '?dial=${Uri.encodeComponent(_dialCode.text)}'
