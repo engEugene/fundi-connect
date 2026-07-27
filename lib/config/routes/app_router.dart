@@ -8,7 +8,7 @@ import '../../features/auth/screens/create_account_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
-import '../../features/auth/screens/verify_phone_screen.dart';
+import '../../features/auth/screens/verify_email_screen.dart';
 import '../../features/client/bookings/screens/booking_detail_screen.dart' as client;
 import '../../features/client/bookings/screens/bookings_screen.dart' as client;
 import '../../features/client/bookings/screens/confirm_booking_screen.dart' as client;
@@ -28,6 +28,21 @@ import '../../features/tradesman/profile/screens/edit_profile_screen.dart';
 import '../../features/tradesman/profile/screens/profile_screen.dart';
 import '../../core/widgets/shell_scaffold.dart';
 
+/// Application router provider.
+///
+/// Watches [authProvider] so redirects react to sign-in / sign-out.
+final routerProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authProvider);
+
+  return GoRouter(
+    navigatorKey: AppRouter.rootNavigatorKey,
+    initialLocation: RouteNames.onboarding,
+    debugLogDiagnostics: true,
+    redirect: (context, state) => AppRouter.redirect(authState, state),
+    routes: AppRouter.routes,
+  );
+});
+
 /// Application router.
 ///
 /// This file is the only place where routes are wired together. Feature owners
@@ -40,105 +55,157 @@ import '../../core/widgets/shell_scaffold.dart';
 class AppRouter {
   AppRouter._();
 
-  static final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-  static final GoRouter router = GoRouter(
-    navigatorKey: _rootNavigatorKey,
-    initialLocation: RouteNames.onboarding,
-    debugLogDiagnostics: true,
-    routes: [
-      // Onboarding
-      GoRoute(
-        path: RouteNames.onboarding,
-        builder: (context, state) => const OnboardingScreen(),
-      ),
+  static String? redirect(AuthState authState, GoRouterState state) {
+    final location = state.uri.path;
 
-      // Auth
-      GoRoute(
-        path: RouteNames.roleSelect,
-        builder: (context, state) => const RoleSelectScreen(),
-      ),
-      GoRoute(
-        path: RouteNames.signIn,
-        builder: (context, state) => const SignInScreen(),
-      ),
-      GoRoute(
-        path: RouteNames.createAccount,
-        builder: (context, state) => const CreateAccountScreen(),
-      ),
-      GoRoute(
-        path: RouteNames.verifyPhone,
-        builder: (context, state) => VerifyPhoneScreen(
-          dialCode: state.uri.queryParameters['dial'],
-          localPhoneNumber: state.uri.queryParameters['phone'],
+    // Show a blank splash while Firebase checks the cached session.
+    if (authState.initializing && location != RouteNames.splash) {
+      return RouteNames.splash;
+    }
+
+    final isAuthRoute = location == RouteNames.onboarding ||
+        location == RouteNames.splash ||
+        location.startsWith(RouteNames.auth);
+    final isProtectedRoute = location.startsWith(RouteNames.home) ||
+        location.startsWith(RouteNames.discover) ||
+        location.startsWith(RouteNames.bookings) ||
+        location.startsWith(RouteNames.profile) ||
+        location.startsWith('/worker/');
+
+    if (!authState.isAuthenticated) {
+      // Keep logged-out users on the auth flow; send everything else to onboarding.
+      if (isProtectedRoute || location == RouteNames.splash) {
+        return RouteNames.onboarding;
+      }
+      return null;
+    }
+
+    final emailVerified = authState.authenticatedUser?.emailVerified ?? false;
+
+    if (!emailVerified) {
+      // Authenticated users with unverified email must verify first.
+      if (location == RouteNames.verifyEmail) return null;
+      return RouteNames.verifyEmail;
+    }
+
+    // Authenticated users with verified email should not land on auth screens.
+    if (isAuthRoute) return RouteNames.home;
+
+    return null;
+  }
+
+  static List<RouteBase> get routes => [
+    // Splash
+    GoRoute(
+      path: RouteNames.splash,
+      builder: (context, state) => const _SplashScreen(),
+    ),
+
+    // Onboarding
+    GoRoute(
+      path: RouteNames.onboarding,
+      builder: (context, state) => const OnboardingScreen(),
+    ),
+
+    // Auth
+    GoRoute(
+      path: RouteNames.roleSelect,
+      builder: (context, state) => const RoleSelectScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.signIn,
+      builder: (context, state) => const SignInScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.createAccount,
+      builder: (context, state) => const CreateAccountScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.verifyEmail,
+      builder: (context, state) => const VerifyEmailScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.forgotPassword,
+      builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+
+    // Worker public profile (full-screen, no bottom nav)
+    GoRoute(
+      path: RouteNames.workerDetail,
+      builder: (context, state) =>
+          WorkerDetailScreen(workerId: state.pathParameters['id']!),
+    ),
+
+    // Main app shell with bottom navigation.
+    // The child rendered by each tab is chosen from the client or tradesman
+    // feature folders based on the current role.
+    ShellRoute(
+      navigatorKey: _shellNavigatorKey,
+      builder: (context, state, child) => ShellScaffold(child: child),
+      routes: [
+        GoRoute(
+          path: RouteNames.home,
+          builder: (context, state) => _RoleAwareHomeScreen(),
+        ),
+        GoRoute(
+          path: RouteNames.discover,
+          builder: (context, state) => _RoleAwareDiscoverScreen(),
+        ),
+        GoRoute(
+          path: RouteNames.bookings,
+          builder: (context, state) => _RoleAwareBookingsScreen(),
+          routes: [
+            GoRoute(
+              path: ':id',
+              builder: (context, state) => _RoleAwareBookingDetailScreen(
+                bookingId: state.pathParameters['id']!,
+              ),
+            ),
+            GoRoute(
+              path: 'confirm',
+              builder: (context, state) => const client.ConfirmBookingScreen(),
+            ),
+            GoRoute(
+              path: 'dashboard',
+              builder: (context, state) => const WorkerDashboardScreen(),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: RouteNames.profile,
+          builder: (context, state) => _RoleAwareProfileScreen(),
+          routes: [
+            GoRoute(
+              path: 'edit',
+              builder: (context, state) => _RoleAwareEditProfileScreen(),
+            ),
+            GoRoute(
+              path: 'settings',
+              builder: (context, state) => const client.SettingsScreen(),
+            ),
+          ],
+        ),
+      ],
+    ),
+  ];
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: CircularProgressIndicator(),
         ),
       ),
-      GoRoute(
-        path: RouteNames.forgotPassword,
-        builder: (context, state) => const ForgotPasswordScreen(),
-      ),
-
-      // Worker public profile (full-screen, no bottom nav)
-      GoRoute(
-        path: RouteNames.workerDetail,
-        builder: (context, state) =>
-            WorkerDetailScreen(workerId: state.pathParameters['id']!),
-      ),
-
-      // Main app shell with bottom navigation.
-      // The child rendered by each tab is chosen from the client or tradesman
-      // feature folders based on the current role.
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => ShellScaffold(child: child),
-        routes: [
-          GoRoute(
-            path: RouteNames.home,
-            builder: (context, state) => _RoleAwareHomeScreen(),
-          ),
-          GoRoute(
-            path: RouteNames.discover,
-            builder: (context, state) => _RoleAwareDiscoverScreen(),
-          ),
-          GoRoute(
-            path: RouteNames.bookings,
-            builder: (context, state) => _RoleAwareBookingsScreen(),
-            routes: [
-              GoRoute(
-                path: ':id',
-                builder: (context, state) => _RoleAwareBookingDetailScreen(
-                  bookingId: state.pathParameters['id']!,
-                ),
-              ),
-              GoRoute(
-                path: 'confirm',
-                builder: (context, state) => const client.ConfirmBookingScreen(),
-              ),
-              GoRoute(
-                path: 'dashboard',
-                builder: (context, state) => const WorkerDashboardScreen(),
-              ),
-            ],
-          ),
-          GoRoute(
-            path: RouteNames.profile,
-            builder: (context, state) => _RoleAwareProfileScreen(),
-            routes: [
-              GoRoute(
-                path: 'edit',
-                builder: (context, state) => _RoleAwareEditProfileScreen(),
-              ),
-              GoRoute(
-                path: 'settings',
-                builder: (context, state) => const client.SettingsScreen(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ],
-  );
+    );
+  }
 }
 
 /// Returns the client or tradesman home screen based on the role.

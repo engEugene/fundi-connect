@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -22,14 +20,14 @@ class AuthRepository {
   Stream<AppUser?> authStateChanges() {
     return _auth.authStateChanges().asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
-      return _getUserDocument(firebaseUser.uid);
+      return _getOrCreateUserDocument(firebaseUser);
     });
   }
 
   Future<AppUser?> getCurrentUser() async {
     final firebaseUser = _auth.currentUser;
     if (firebaseUser == null) return null;
-    return _getUserDocument(firebaseUser.uid);
+    return _getOrCreateUserDocument(firebaseUser);
   }
 
   Future<AppUser> signInWithEmail(String email, String password) async {
@@ -43,16 +41,7 @@ class AuthRepository {
         throw const AuthException('Sign in failed. Please try again.');
       }
 
-      final appUser = await _getUserDocument(firebaseUser.uid);
-      if (appUser == null) {
-        final fallback = _appUserFromFirebase(
-          firebaseUser,
-          role: UserRole.client,
-        );
-        await _createUserDocument(fallback);
-        return fallback;
-      }
-      return appUser;
+      return _getOrCreateUserDocument(firebaseUser);
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     }
@@ -85,6 +74,9 @@ class AuthRepository {
         phone: phone?.trim(),
       );
       await _createUserDocument(appUser);
+      try {
+        await _sendEmailVerification(refreshedUser);
+      } catch (_) {}
       return appUser;
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
@@ -104,66 +96,50 @@ class AuthRepository {
     await _auth.signOut();
   }
 
-  Future<String> verifyPhoneNumber(String phoneNumber) async {
-    final completer = Completer<String>();
-
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        if (!completer.isCompleted) {
-          completer.complete(credential.verificationId ?? '');
-        }
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        if (!completer.isCompleted) {
-          completer.completeError(AuthException(_mapFirebaseAuthError(e)));
-        }
-      },
-      codeSent: (String verificationId, int? forceResendingToken) {
-        if (!completer.isCompleted) {
-          completer.complete(verificationId);
-        }
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        if (!completer.isCompleted) {
-          completer.complete(verificationId);
-        }
-      },
-    );
-
-    return completer.future;
+  Future<void> sendEmailVerification() async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null || firebaseUser.emailVerified) return;
+    await _sendEmailVerification(firebaseUser);
   }
 
-  Future<AppUser> linkPhoneCredential(
-    String verificationId,
-    String smsCode,
-  ) async {
-    final credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
+  Future<AppUser?> reloadEmailVerificationStatus() async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) return null;
+    await firebaseUser.reload();
+    final refreshedUser = _auth.currentUser!;
+    final current = await _getUserDocument(refreshedUser.uid);
+    final updated = (current ?? _appUserFromFirebase(refreshedUser, role: UserRole.client))
+        .copyWith(emailVerified: refreshedUser.emailVerified);
+    await _createUserDocument(updated);
+    return updated;
+  }
 
+  Future<void> _sendEmailVerification(User firebaseUser) async {
     try {
-      final firebaseUser = _auth.currentUser;
-      if (firebaseUser == null) {
-        throw const AuthException('No signed-in user. Please sign in again.');
-      }
-
-      await firebaseUser.updatePhoneNumber(credential);
-      await firebaseUser.reload();
-      final refreshedUser = _auth.currentUser!;
-
-      final current = await _getUserDocument(refreshedUser.uid);
-      final updated = (current ?? _appUserFromFirebase(refreshedUser, role: UserRole.client))
-          .copyWith(
-        phone: refreshedUser.phoneNumber,
-        updatedAt: DateTime.now(),
-      );
-      await _createUserDocument(updated);
-      return updated;
+      await firebaseUser.sendEmailVerification();
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     }
+  }
+
+  Future<AppUser> _getOrCreateUserDocument(User firebaseUser) async {
+    final fromFirestore = await _getUserDocument(firebaseUser.uid);
+    if (fromFirestore != null) {
+      final updated = fromFirestore.copyWith(
+        emailVerified: firebaseUser.emailVerified,
+      );
+      if (updated.emailVerified != fromFirestore.emailVerified) {
+        await _createUserDocument(updated);
+      }
+      return updated;
+    }
+
+    final fallback = _appUserFromFirebase(
+      firebaseUser,
+      role: UserRole.client,
+    );
+    await _createUserDocument(fallback);
+    return fallback;
   }
 
   Future<AppUser?> _getUserDocument(String uid) async {
@@ -197,6 +173,7 @@ class AuthRepository {
       phone: phone ?? firebaseUser.phoneNumber,
       displayName: firebaseUser.displayName,
       photoUrl: firebaseUser.photoURL,
+      emailVerified: firebaseUser.emailVerified,
     );
   }
 
@@ -211,9 +188,6 @@ class AuthRepository {
       'weak-password' => 'Password is too weak. Use at least 8 characters.',
       'too-many-requests' =>
         'Too many attempts. Please wait a moment and try again.',
-      'invalid-verification-code' => 'Invalid verification code.',
-      'invalid-verification-id' => 'Verification session expired. Resend code.',
-      'session-expired' => 'Verification session expired. Resend code.',
       _ => e.message ?? 'Something went wrong. Please try again.',
     };
   }
