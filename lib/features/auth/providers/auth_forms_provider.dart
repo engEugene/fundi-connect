@@ -1,14 +1,9 @@
-// autoDispose so forms clear when you leave.
-// error overwrites instead of falling back — lets us clear errors
-// without extra flags. submit returns result, never navigates from here.
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/app_user.dart';
 import '../domain/validators.dart';
 import 'auth_provider.dart';
 import '../data/auth_repository.dart';
-// ─── Sign in ────────────────────────────────────────────────────────────────
 
 class SignInFormState {
   const SignInFormState({
@@ -71,8 +66,6 @@ class SignInFormNotifier extends AutoDisposeNotifier<SignInFormState> {
 
 }
 
-// ─── Sign up ────────────────────────────────────────────────────────────────
-
 enum SignUpOutcome { success, failed }
 
 class SignUpFormState {
@@ -111,7 +104,6 @@ class SignUpFormNotifier extends AutoDisposeNotifier<SignUpFormState> {
   void togglePasswordVisibility() =>
       state = state.copyWith(obscurePassword: !state.obscurePassword);
 
-  /// Creates a new account and stores the phone number in the user document.
   Future<SignUpOutcome> submit({
     required String name,
     required String email,
@@ -150,9 +142,6 @@ class SignUpFormNotifier extends AutoDisposeNotifier<SignUpFormState> {
   }
 }
 
-// ─── Verify phone ───────────────────────────────────────────────────────────
-// ─── Forgot password ────────────────────────────────────────────────────────
-
 class ForgotPasswordState {
   const ForgotPasswordState({this.submitting = false, this.sentToEmail});
 
@@ -173,7 +162,6 @@ class ForgotPasswordNotifier extends AutoDisposeNotifier<ForgotPasswordState> {
   @override
   ForgotPasswordState build() => const ForgotPasswordState();
 
-  // always say success, otherwise people can check if emails exist
   Future<void> sendResetLink(String email) async {
     if (state.submitting) return;
     state = const ForgotPasswordState(submitting: true);
@@ -181,10 +169,9 @@ class ForgotPasswordNotifier extends AutoDisposeNotifier<ForgotPasswordState> {
     try {
       await _repository.sendPasswordResetEmail(email);
     } on AuthException catch (_) {
-      // Surface only real failures; 'user-not-found' is swallowed by the repo.
+
     } catch (_) {
-      // Network or other errors still show the same success message so callers
-      // can't probe for registered emails.
+
     }
 
     state = ForgotPasswordState(sentToEmail: email.trim());

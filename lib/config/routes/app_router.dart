@@ -28,17 +28,51 @@ import '../../features/tradesman/profile/screens/edit_profile_screen.dart';
 import '../../features/tradesman/profile/screens/profile_screen.dart';
 import '../../core/widgets/shell_scaffold.dart';
 
+/// Notifies [GoRouter] when [authProvider] changes without recreating the router.
+class _AuthRouterNotifier extends ChangeNotifier {
+  _AuthRouterNotifier(this.ref) {
+    _subscription = ref.listen<AuthState>(
+      authProvider,
+      (_, _) => notifyListeners(),
+    );
+  }
+
+  final Ref ref;
+  ProviderSubscription<AuthState>? _subscription;
+
+  AuthState get state => ref.read(authProvider);
+
+  @override
+  void dispose() {
+    _subscription?.close();
+    super.dispose();
+  }
+}
+
+/// Provider that creates the auth router notifier. It is intentionally a plain
+/// [Provider] (not a [ChangeNotifierProvider]) so that [routerProvider] does not
+/// rebuild every time the notifier calls [notifyListeners]. The notifier itself
+/// listens to [authProvider] and notifies [GoRouter] via [refreshListenable].
+final _authRouterNotifierProvider = Provider<_AuthRouterNotifier>((ref) {
+  final notifier = _AuthRouterNotifier(ref);
+  ref.onDispose(() => notifier.dispose());
+  return notifier;
+});
+
 /// Application router provider.
 ///
-/// Watches [authProvider] so redirects react to sign-in / sign-out.
+/// Uses [refreshListenable] so redirects react to sign-in / sign-out while the
+/// [GoRouter] instance stays alive. This prevents navigation resets when the
+/// selected role changes on the role-select screen.
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final notifier = ref.watch(_authRouterNotifierProvider);
 
   return GoRouter(
     navigatorKey: AppRouter.rootNavigatorKey,
     initialLocation: RouteNames.onboarding,
     debugLogDiagnostics: true,
-    redirect: (context, state) => AppRouter.redirect(authState, state),
+    refreshListenable: notifier,
+    redirect: (context, state) => AppRouter.redirect(notifier.state, state),
     routes: AppRouter.routes,
   );
 });

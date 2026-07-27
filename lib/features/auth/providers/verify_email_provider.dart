@@ -96,8 +96,6 @@ class VerifyEmailNotifier extends AutoDisposeNotifier<VerifyEmailState> {
     });
   }
 
-  /// Reloads the current user and updates the global auth state if the email
-  /// has been verified. Returns true when verified.
   Future<bool> checkVerification() async {
     if (state.checking) return false;
     state = state.copyWith(checking: true, error: null);

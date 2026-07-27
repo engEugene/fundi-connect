@@ -1,4 +1,3 @@
-// no flutter stuff so this works with any backend
 class Validators {
   Validators._();
 

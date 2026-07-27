@@ -7,15 +7,10 @@ import '../data/auth_repository.dart';
 
 export '../../../core/models/app_user.dart' show UserRole;
 
-/// Repository provider. Overridable for tests.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository();
 });
 
-/// Auth state shared by both clients and tradesmen.
-///
-/// [selectedRole] is set during onboarding before sign-in. Once Firebase Auth
-/// returns a user, [authenticatedUser] is populated and the app routes by role.
 class AuthState {
   const AuthState({
     this.selectedRole = UserRole.client,
@@ -26,8 +21,6 @@ class AuthState {
   final UserRole selectedRole;
   final AppUser? authenticatedUser;
 
-  /// True while the provider is checking the cached Firebase session.
-  /// Used by the router to decide whether to show a splash screen.
   final bool initializing;
 
   bool get isAuthenticated => authenticatedUser != null;
@@ -79,8 +72,6 @@ class AuthNotifier extends Notifier<AuthState> {
   void selectRole(UserRole role) =>
       state = state.copyWith(selectedRole: role);
 
-  /// Called by the repository-backed form providers after a successful sign-in
-  /// or sign-up so the app reacts immediately instead of waiting for the stream.
   void signIn(AppUser user) => state = state.copyWith(
         authenticatedUser: user,
         selectedRole: user.role,

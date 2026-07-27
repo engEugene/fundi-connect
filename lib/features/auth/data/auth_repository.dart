@@ -74,6 +74,9 @@ class AuthRepository {
         phone: phone?.trim(),
       );
       await _createUserDocument(appUser);
+      if (role == UserRole.worker) {
+        await _createInitialWorkerDocument(appUser);
+      }
       try {
         await _sendEmailVerification(refreshedUser);
       } catch (_) {}
@@ -131,14 +134,24 @@ class AuthRepository {
       if (updated.emailVerified != fromFirestore.emailVerified) {
         await _createUserDocument(updated);
       }
+      if (updated.role == UserRole.worker) {
+        await _createInitialWorkerDocument(updated);
+      }
       return updated;
     }
 
+    // If the users document is missing, infer the role from an existing
+    // worker document so we don't accidentally downgrade a worker to client.
+    final workerDocExists = await _workerDocExists(firebaseUser.uid);
+    final fallbackRole = workerDocExists ? UserRole.worker : UserRole.client;
     final fallback = _appUserFromFirebase(
       firebaseUser,
-      role: UserRole.client,
+      role: fallbackRole,
     );
     await _createUserDocument(fallback);
+    if (fallbackRole == UserRole.worker) {
+      await _createInitialWorkerDocument(fallback);
+    }
     return fallback;
   }
 
@@ -159,6 +172,43 @@ class AuthRepository {
       updatedAt: now,
     );
     await _firestore.userDoc(user.uid).set(doc.toJson(), SetOptions(merge: true));
+  }
+
+  /// Creates a minimal `workers/{uid}` document for a newly registered tradesman.
+  /// The worker fills in the rest from the Edit Profile screen.
+  Future<void> _createInitialWorkerDocument(AppUser user) async {
+    final now = DateTime.now();
+    final data = {
+      'uid': user.uid,
+      'displayName': user.displayName ?? '',
+      'category': '',
+      'hourlyRate': 0,
+      'currency': 'RWF',
+      'yearsExp': 0,
+      'bio': '',
+      'isOpen': false,
+      'isVerified': false,
+      'district': '',
+      'jobsDone': 0,
+      'ratingAvg': 0.0,
+      'reviewCount': 0,
+      'portfolioUrls': <String>[],
+      'availability': <String, dynamic>{},
+      'createdAt': Timestamp.fromDate(now),
+      'updatedAt': Timestamp.fromDate(now),
+    };
+    await _firestore
+        .workerDoc(user.uid)
+        .set(data, SetOptions(merge: true));
+  }
+
+  Future<bool> _workerDocExists(String uid) async {
+    try {
+      final doc = await _firestore.workerDoc(uid).get();
+      return doc.exists;
+    } catch (_) {
+      return false;
+    }
   }
 
   AppUser _appUserFromFirebase(
