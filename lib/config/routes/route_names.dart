@@ -7,13 +7,14 @@ class RouteNames {
 
   // Onboarding
   static const String onboarding = '/';
+  static const String splash = '/splash';
 
   // Auth
   static const String auth = '/auth';
   static const String roleSelect = '$auth/role-select';
   static const String signIn = '$auth/sign-in';
   static const String createAccount = '$auth/create-account';
-  static const String verifyPhone = '$auth/verify-phone';
+  static const String verifyEmail = '$auth/verify-email';
   static const String forgotPassword = '$auth/forgot-password';
 
   // Main shell (bottom nav)

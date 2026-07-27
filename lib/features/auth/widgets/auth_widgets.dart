@@ -1,6 +1,5 @@
 // pill shapes only for auth screens, other features use diff rounding
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
@@ -148,45 +147,6 @@ class AuthSubmitButton extends StatelessWidget {
   }
 }
 
-class GoogleSignInButton extends StatelessWidget {
-  const GoogleSignInButton({
-    super.key,
-    required this.onPressed,
-    this.loading = false,
-    this.enabled = true,
-  });
-
-  final VoidCallback onPressed;
-  final bool loading;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      style: AuthStyles.secondaryButton,
-      onPressed: (loading || !enabled) ? null : onPressed,
-      child: loading
-          ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.2),
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset(
-                  'assets/icons/google.svg',
-                  width: 20,
-                  height: 20,
-                ),
-                const SizedBox(width: 12),
-                Text('Continue with Google', style: AppTextStyles.labelLarge),
-              ],
-            ),
-    );
-  }
-}
-
 class AuthFooterPrompt extends StatelessWidget {
   const AuthFooterPrompt({
     super.key,
@@ -201,8 +161,9 @@ class AuthFooterPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
           question,
@@ -299,23 +260,3 @@ class InfoNote extends StatelessWidget {
   }
 }
 
-class OrDivider extends StatelessWidget {
-  const OrDivider({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: AppColors.divider)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'or',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-          ),
-        ),
-        const Expanded(child: Divider(color: AppColors.divider)),
-      ],
-    );
-  }
-}

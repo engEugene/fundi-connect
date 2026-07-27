@@ -191,7 +191,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (shouldLogOut != true || !mounted) return;
 
-    ref.read(authProvider.notifier).signOut();
+    await ref.read(authProvider.notifier).signOut();
     if (mounted) context.go(RouteNames.onboarding);
   }
 }

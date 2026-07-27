@@ -62,7 +62,11 @@ class RoleSelectScreen extends ConsumerWidget {
                         subtitle: 'Post jobs and hire skilled workers near you',
                         icon: Icons.person_search_rounded,
                         selected: role == UserRole.client,
-                        onTap: () => notifier.selectRole(UserRole.client),
+                        onTap: () => _selectRoleAndProceed(
+                          context,
+                          notifier,
+                          UserRole.client,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _RoleCard(
@@ -70,7 +74,11 @@ class RoleSelectScreen extends ConsumerWidget {
                         subtitle: 'Offer your skills and grow your business',
                         icon: Icons.handyman_rounded,
                         selected: role == UserRole.worker,
-                        onTap: () => notifier.selectRole(UserRole.worker),
+                        onTap: () => _selectRoleAndProceed(
+                          context,
+                          notifier,
+                          UserRole.worker,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       const InfoNote(
@@ -83,13 +91,6 @@ class RoleSelectScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              AuthSubmitButton(
-                label: role == UserRole.worker
-                    ? 'Continue as Tradesman'
-                    : 'Continue as Client',
-                // push so back arrow goes back here
-                onPressed: () => context.push(RouteNames.createAccount),
-              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -97,6 +98,15 @@ class RoleSelectScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _selectRoleAndProceed(
+  BuildContext context,
+  AuthNotifier notifier,
+  UserRole role,
+) {
+  notifier.selectRole(role);
+  context.push(RouteNames.createAccount);
 }
 
 class _RoleCard extends StatelessWidget {

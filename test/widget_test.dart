@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:fundi_connect/app.dart';
+import 'package:fundi_connect/features/auth/providers/auth_provider.dart';
 
 void main() {
   setUpAll(() {
@@ -16,10 +17,22 @@ void main() {
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: FundiConnectApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith(() => _TestAuthNotifier()),
+        ],
+        child: const FundiConnectApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(PageView), findsOneWidget);
     expect(find.text('Get Started'), findsOneWidget);
   });
+}
+
+class _TestAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(initializing: false);
 }

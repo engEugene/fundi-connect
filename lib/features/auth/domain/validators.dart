@@ -1,11 +1,7 @@
-// no flutter stuff so this works with any backend
 class Validators {
   Validators._();
 
   static const int minPasswordLength = 8;
-
-  // 6 digits bcs firebase, not 4 like Figma
-  static const int otpLength = 6;
 
   static const String defaultDialCode = '+250';
 
@@ -58,13 +54,6 @@ class Validators {
   // no strength rules here, older accounts might have weak passwords
   static String? signInPassword(String? value) =>
       (value ?? '').isEmpty ? 'Password is required' : null;
-
-  static String? otp(String? value) {
-    final digits = digitsOnly(value ?? '');
-    if (digits.isEmpty) return 'Enter the verification code';
-    if (digits.length != otpLength) return 'Enter all $otpLength digits';
-    return null;
-  }
 
   static String digitsOnly(String value) => value.replaceAll(RegExp(r'\D'), '');
 
