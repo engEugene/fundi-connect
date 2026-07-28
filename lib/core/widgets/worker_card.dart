@@ -92,7 +92,9 @@ class WorkerCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          '${worker.distanceKm} km',
+                          // Firestore has no distance field — location is
+                          // district-level only (ARCHITECTURE.md §12).
+                          worker.district ?? '${worker.distanceKm} km',
                           style: AppTextStyles.bodySmall,
                         ),
                       ],
