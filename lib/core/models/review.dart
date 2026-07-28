@@ -7,6 +7,16 @@ class Review {
     required this.comment,
   });
 
+  /// `clientName`/`clientPhotoUrl` must be denormalised onto the review doc —
+  /// the schema in ARCHITECTURE.md §8 only lists `clientId`.
+  factory Review.fromJson(String id, Map<String, dynamic> json) => Review(
+        id: id,
+        authorName: json['clientName'] as String? ?? 'Client',
+        authorImageUrl: json['clientPhotoUrl'] as String? ?? '',
+        rating: (json['rating'] as num?)?.toDouble() ?? 0,
+        comment: json['comment'] as String? ?? '',
+      );
+
   final String id;
   final String authorName;
   final String authorImageUrl;
