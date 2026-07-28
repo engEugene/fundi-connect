@@ -1,4 +1,3 @@
-// dummy data for ui
 class Worker {
   const Worker({
     required this.id,
@@ -15,8 +14,33 @@ class Worker {
     this.about,
     this.jobsDone,
     this.yearsExp,
+    this.district,
     this.pastWorkUrls = const [],
   });
+
+  factory Worker.fromJson(String id, Map<String, dynamic> json) {
+    final category = json['category'] as String? ?? 'General';
+    return Worker(
+      id: id,
+      name: json['displayName'] as String? ?? 'Tradesman',
+      role: category,
+      category: category,
+      imageUrl: json['photoUrl'] as String? ?? '',
+      rating: (json['ratingAvg'] as num?)?.toDouble() ?? 0,
+      reviewCount: json['reviewCount'] as int? ?? 0,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0,
+      hourlyRate: (json['hourlyRate'] as num?)?.toDouble() ?? 0,
+      isVerified: json['isVerified'] as bool? ?? false,
+      isOpen: json['isOpen'] as bool? ?? false,
+      about: json['bio'] as String?,
+      jobsDone: json['jobsDone'] as int?,
+      yearsExp: json['yearsExp'] as int?,
+      district: json['district'] as String?,
+      pastWorkUrls: (json['portfolioUrls'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+  }
 
   final String id;
   final String name;
@@ -32,7 +56,25 @@ class Worker {
   final String? about;
   final int? jobsDone;
   final int? yearsExp;
+  final String? district;
   final List<String> pastWorkUrls;
+
+  Map<String, dynamic> toJson() => {
+        'uid': id,
+        'displayName': name,
+        'category': category,
+        'photoUrl': imageUrl,
+        'ratingAvg': rating,
+        'reviewCount': reviewCount,
+        'hourlyRate': hourlyRate,
+        'isVerified': isVerified,
+        'isOpen': isOpen,
+        'bio': about,
+        'jobsDone': jobsDone,
+        'yearsExp': yearsExp,
+        'district': district,
+        'portfolioUrls': pastWorkUrls,
+      };
 
   static Worker? findById(String id) {
     final all = <Worker>[...nearby, ...discover];
