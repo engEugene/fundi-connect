@@ -1,78 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
-import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/review_card.dart';
+import '../providers/discover_provider.dart';
 
-
-class WorkerDetailScreen extends StatelessWidget {
+class WorkerDetailScreen extends ConsumerWidget {
   const WorkerDetailScreen({super.key, required this.workerId});
 
   final String workerId;
 
   @override
-  Widget build(BuildContext context) {
-    final worker = Worker.findById(workerId);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workerDetailAsync = ref.watch(workerDetailProvider(workerId));
 
-    if (worker == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Profile')),
-        body: const Center(child: Text('Worker not found')),
-      );
-    }
+    return workerDetailAsync.when(
+      data: (detail) {
+        final worker = detail.worker;
+        if (worker == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Profile')),
+            body: const Center(child: Text('Worker not found')),
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      bottomNavigationBar: _BookNowBar(worker: worker),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              _ProfileHeader(worker: worker),
-              const SizedBox(height: 20),
-              _StatsRow(worker: worker),
-              const SizedBox(height: 24),
-              _SectionTitle('About'),
-              const SizedBox(height: 8),
-              Text(
-                worker.about ??
-                    '${worker.role} with ${worker.yearsExp ?? 0}+ years experience.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+        final reviews = detail.reviews;
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: const Text('Profile'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share_outlined),
+                onPressed: () {},
               ),
-              const SizedBox(height: 24),
-              _SectionTitle('Reviews'),
-              const SizedBox(height: 12),
-              Column(
-                children: Review.sample
-                    .map((review) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: ReviewCard(review: review),
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 24),
             ],
           ),
+          bottomNavigationBar: _BookNowBar(worker: worker),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  _ProfileHeader(worker: worker),
+                  const SizedBox(height: 20),
+                  _StatsRow(worker: worker),
+                  const SizedBox(height: 24),
+                  _SectionTitle('About'),
+                  const SizedBox(height: 8),
+                  Text(
+                    worker.about ??
+                        '${worker.role} with ${worker.yearsExp ?? 0}+ years experience.',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionTitle('Reviews (${reviews.length})'),
+                  const SizedBox(height: 12),
+                  if (reviews.isEmpty)
+                    Text(
+                      'No reviews yet.',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    )
+                  else
+                    Column(
+                      children: reviews
+                          .map((review) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: ReviewCard(review: review),
+                              ))
+                          .toList(),
+                    ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
+      ),
+      error: (_, _) => Scaffold(
+        appBar: AppBar(title: const Text('Profile')),
+        body: const Center(child: Text('Error loading worker profile.')),
       ),
     );
   }

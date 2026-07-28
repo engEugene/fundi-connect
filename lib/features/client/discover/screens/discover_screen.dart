@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/widgets/worker_card.dart';
+import '../providers/discover_provider.dart';
 
-
-class DiscoverScreen extends StatefulWidget {
+class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
 
   @override
-  State<DiscoverScreen> createState() => _DiscoverScreenState();
+  ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> {
-  final _searchController = TextEditingController(text: 'Electrician');
-  final _filters = const ['All', 'Nearest', 'Top Rated', 'Price ↑'];
-  int _selectedFilter = 0;
+class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
+  static const _sortFilters = ['All', 'Top Rated', 'Price ↑', 'Available'];
+
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: ref.read(discoverFilterProvider).searchQuery,
+    );
+  }
 
   @override
   void dispose() {
@@ -31,6 +40,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final workersAsync = ref.watch(discoverWorkersProvider);
+    final filters = ref.watch(discoverFilterProvider);
+    final categories =
+        ref.watch(categoriesStreamProvider).valueOrNull ?? const [];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -43,34 +57,88 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-                  _SearchBar(controller: _searchController),
-                  const SizedBox(height: 16),
-                  _FilterChips(
-                    filters: _filters,
-                    selectedIndex: _selectedFilter,
-                    onSelected: (index) => setState(() => _selectedFilter = index),
+                  _SearchBar(
+                    controller: _searchController,
+                    onChanged: (val) {
+                      ref
+                          .read(discoverFilterProvider.notifier)
+                          .setSearchQuery(val);
+                    },
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    '24 electricians found near you',
-                    style: AppTextStyles.titleMedium,
+                  if (categories.isNotEmpty) ...[
+                    _ChipRow(
+                      labels: ['All', ...categories.map((c) => c.name)],
+                      selected: filters.category,
+                      onSelected: ref
+                          .read(discoverFilterProvider.notifier)
+                          .setCategory,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  _ChipRow(
+                    labels: _sortFilters,
+                    selected: filters.filter,
+                    onSelected: ref
+                        .read(discoverFilterProvider.notifier)
+                        .setFilter,
+                  ),
+                  const SizedBox(height: 16),
+                  workersAsync.when(
+                    data: (workers) => Text(
+                      '${workers.length} worker${workers.length == 1 ? '' : 's'} found near you',
+                      style: AppTextStyles.titleMedium,
+                    ),
+                    loading: () => Text(
+                      'Searching nearby workers...',
+                      style: AppTextStyles.titleMedium,
+                    ),
+                    error: (_, _) => Text(
+                      'Workers near you',
+                      style: AppTextStyles.titleMedium,
+                    ),
                   ),
                   const SizedBox(height: 12),
                 ],
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: Worker.discover.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (_, index) {
-                  final worker = Worker.discover[index];
-                  return WorkerCard(
-                    worker: worker,
-                    onTap: () => _onWorkerTap(worker),
+              child: workersAsync.when(
+                data: (workers) {
+                  if (workers.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No workers found matching your search.',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: workers.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (_, index) {
+                      final worker = workers[index];
+                      return WorkerCard(
+                        worker: worker,
+                        onTap: () => _onWorkerTap(worker),
+                      );
+                    },
                   );
                 },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+                error: (error, _) => Center(
+                  child: Text(
+                    'Failed to load workers. Please try again.',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -81,9 +149,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 }
 
 class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.controller});
+  const _SearchBar({required this.controller, this.onChanged});
 
   final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -108,14 +177,12 @@ class _SearchBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Icon(
-            Icons.search,
-            color: AppColors.textMuted,
-          ),
+          const Icon(Icons.search, color: AppColors.textMuted),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
               controller: controller,
+              onChanged: onChanged,
               textInputAction: TextInputAction.search,
               style: AppTextStyles.bodyMedium,
               cursorColor: AppColors.primary,
@@ -184,37 +251,37 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({
-    required this.filters,
-    required this.selectedIndex,
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({
+    required this.labels,
+    required this.selected,
     required this.onSelected,
   });
 
-  final List<String> filters;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
+  final List<String> labels;
+  final String selected;
+  final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: filters.asMap().entries.map((entry) {
-          final index = entry.key;
-          final label = entry.value;
-          final isSelected = index == selectedIndex;
+        children: labels.map((label) {
+          final isSelected = label == selected;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
               label: Text(
                 label,
                 style: AppTextStyles.labelMedium.copyWith(
-                  color: isSelected ? AppColors.onPrimary : AppColors.textPrimary,
+                  color: isSelected
+                      ? AppColors.onPrimary
+                      : AppColors.textPrimary,
                 ),
               ),
               selected: isSelected,
-              onSelected: (_) => onSelected(index),
+              onSelected: (_) => onSelected(label),
               selectedColor: AppColors.primary,
               backgroundColor: AppColors.tertiary,
               showCheckmark: false,
