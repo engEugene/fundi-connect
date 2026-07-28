@@ -5,6 +5,22 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "isOpen", "order": "ASCENDING" },
+        { "fieldPath": "ratingAvg", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "categories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "displayOrder", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "workers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isOpen", "order": "ASCENDING" },
         { "fieldPath": "district", "order": "ASCENDING" },
         { "fieldPath": "ratingAvg", "order": "DESCENDING" }
       ]
