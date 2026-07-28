@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
-import '../../../../core/models/category.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/widgets/category_chip.dart';
 import '../../../../core/widgets/worker_card.dart';
+import '../../discover/providers/discover_provider.dart';
+import '../providers/home_provider.dart';
+
 
 
 class HomeScreen extends StatelessWidget {
@@ -302,51 +305,99 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _CategoriesList extends StatelessWidget {
+class _CategoriesList extends ConsumerWidget {
   const _CategoriesList();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
+
     return SizedBox(
       height: 100,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: Category.all.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 20),
-        itemBuilder: (_, index) {
-          final category = Category.all[index];
-          final isSelected = category.name == 'Electrician';
-          return CategoryChip(
-            name: category.name,
-            icon: category.icon,
-            isSelected: isSelected,
-            onTap: () => context.go(RouteNames.discover),
-          );
-        },
+      child: categoriesAsync.when(
+        data: (categories) => ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: categories.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 20),
+          itemBuilder: (_, index) {
+            final category = categories[index];
+            return CategoryChip(
+              name: category.name,
+              icon: category.icon,
+              onTap: () {
+                ref.read(discoverFilterProvider.notifier).setCategory(category.name);
+                context.go(RouteNames.discover);
+              },
+            );
+          },
+        ),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, _) => Center(
+          child: Text(
+            "Couldn't load categories.",
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _NearbyTradesmenList extends StatelessWidget {
+class _NearbyTradesmenList extends ConsumerWidget {
   const _NearbyTradesmenList({required this.onWorkerTap});
 
   final ValueChanged<Worker> onWorkerTap;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: Worker.nearby
-          .map(
-            (worker) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: WorkerCard(
-                worker: worker,
-                onTap: () => onWorkerTap(worker),
-              ),
-            ),
-          )
-          .toList(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workersAsync = ref.watch(nearbyWorkersProvider);
+
+    return workersAsync.when(
+      data: (workers) {
+        if (workers.isEmpty) {
+          return _HomeMessage('No tradesmen are available right now.');
+        }
+        return Column(
+          children: workers
+              .map(
+                (worker) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: WorkerCard(
+                    worker: worker,
+                    onTap: () => onWorkerTap(worker),
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      ),
+      error: (_, _) => _HomeMessage("Couldn't load tradesmen."),
     );
   }
 }
+
+class _HomeMessage extends StatelessWidget {
+  const _HomeMessage(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Text(
+          text,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted),
+        ),
+      ),
+    );
+  }
+}
+
