@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Category shown in the Home screen horizontal list, and used to filter
-/// workers on the Discover screen.
+
 class Category {
   const Category({
     this.id = '',
@@ -9,8 +8,6 @@ class Category {
     required this.icon,
   });
 
-  /// Kept for backward compatibility with any existing call sites that
-  /// don't have a Firestore doc id on hand.
   factory Category.fromJson(Map<String, dynamic> json) => Category(
         name: json['name'] as String? ?? '',
         icon: iconFor(json['iconName'] as String?),
