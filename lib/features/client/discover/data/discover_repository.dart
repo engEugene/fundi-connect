@@ -5,21 +5,13 @@ import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/services/firestore_service.dart';
 
-/// Read-only Firestore access for the Discover feature (Phase 3).
-///
-/// Category and district filters are applied server-side via Firestore
-/// equality `where` clauses. Search text and sort order are applied
-/// client-side in `discoverWorkersProvider` since those change on every
-/// keystroke/tap and don't warrant a fresh Firestore query each time.
+
 class DiscoverRepository {
   const DiscoverRepository(this._firestore);
 
   final FirestoreService _firestore;
 
-  /// Streams the `workers` collection, optionally narrowed to a single
-  /// category and/or district. Both are plain equality filters — no
-  /// composite index required as long as neither is combined with an
-  /// `orderBy` on a different field.
+  
   Stream<List<Worker>> watchWorkers({String? category, String? district}) {
     Query<Map<String, dynamic>> query = _firestore.workers;
 
@@ -37,8 +29,7 @@ class DiscoverRepository {
         );
   }
 
-  /// Streams a single worker document — this is what makes availability
-  /// (`isOpen`) update live on the Worker Detail screen without a refresh.
+  
   Stream<Worker?> watchWorker(String workerId) {
     return _firestore.workerDoc(workerId).snapshots().map((doc) {
       final data = doc.data();
@@ -47,12 +38,7 @@ class DiscoverRepository {
     });
   }
 
-  /// Streams reviews for one worker, newest first.
-  ///
-  /// NOTE: this combines an equality filter (`tradesmanId`) with an
-  /// `orderBy` on a different field (`createdAt`) — Firestore will require
-  /// a composite index the first time this runs. See the note at the
-  /// bottom of this file for how to create it.
+ 
   Stream<List<Review>> watchReviews(String workerId) {
     return _firestore.reviews
         .where('tradesmanId', isEqualTo: workerId)
@@ -82,21 +68,3 @@ class DiscoverRepository {
   }
 }
 
-// -----------------------------------------------------------------------
-// FIRESTORE INDEXES REQUIRED — read this before running the app.
-//
-// Two queries above combine an equality filter with `orderBy` on a
-// different field. Firestore requires a composite index for that combo,
-// and the queries will fail at runtime (not compile time) until the index
-// exists.
-//
-// Easiest way to create them: run the app, trigger each query (open
-// Discover, open a worker's detail screen), and check the debug console —
-// Firestore prints a direct link that creates the exact index needed with
-// one click. Do this once per query:
-//   1. `reviews` — equality on tradesmanId + orderBy createdAt desc
-//   2. `categories` — equality on isActive + orderBy displayOrder asc
-//
-// Alternatively, create them manually in the Firebase Console under
-// Firestore → Indexes → Composite, matching the fields above.
-// -----------------------------------------------------------------------
