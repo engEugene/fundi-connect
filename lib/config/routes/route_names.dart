@@ -7,13 +7,15 @@ class RouteNames {
 
   // Onboarding
   static const String onboarding = '/';
+  static const String splash = '/splash';
 
   // Auth
   static const String auth = '/auth';
   static const String roleSelect = '$auth/role-select';
   static const String signIn = '$auth/sign-in';
   static const String createAccount = '$auth/create-account';
-  static const String verifyPhone = '$auth/verify-phone';
+  static const String verifyEmail = '$auth/verify-email';
+  static const String forgotPassword = '$auth/forgot-password';
 
   // Main shell (bottom nav)
   static const String home = '/home';
@@ -21,9 +23,8 @@ class RouteNames {
   static const String bookings = '/bookings';
   static const String profile = '/profile';
 
-  // Discover sub-flows
-  static const String searchResults = '$discover/search';
-  static const String workerDetail = '$discover/worker/:id';
+  // Worker public profile (full-screen, no bottom nav)
+  static const String workerDetail = '/worker/:id';
 
   // Booking sub-flows
   static const String bookingDetail = '$bookings/:id';
