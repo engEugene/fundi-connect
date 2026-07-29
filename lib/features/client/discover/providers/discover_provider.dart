@@ -8,23 +8,12 @@ import '../../../../core/models/worker.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../data/discover_repository.dart';
 
-/// Owner: Discover team (Phase 3)
+
 
 final discoverRepositoryProvider = Provider<DiscoverRepository>((ref) {
   return const DiscoverRepository(FirestoreService());
 });
 
-// ---------------------------------------------------------------------
-// Filters
-// ---------------------------------------------------------------------
-
-/// Current search/filter selection on the Discover screen.
-///
-/// [district] defaults to 'Kigali' — the app is Kigali-only for now (per
-/// ARCHITECTURE.md open question #3), matching the static "Kigali" badge
-/// already shown in the search bar. There's no picker UI wired to it yet;
-/// [DiscoverFilterNotifier.setDistrict] is exposed so one can be added
-/// later without any backend changes.
 class DiscoverFilters {
   const DiscoverFilters({
     this.searchQuery = '',
@@ -62,9 +51,7 @@ class DiscoverFilterNotifier extends StateNotifier<DiscoverFilters> {
 
   void setFilter(String value) => state = state.copyWith(filter: value);
 
-  /// Explicit setter (not routed through copyWith) so district can be
-  /// cleared back to null — a future "all districts" option — once a
-  /// picker UI exists.
+
   void setDistrict(String? value) {
     state = DiscoverFilters(
       searchQuery: state.searchQuery,
@@ -80,22 +67,14 @@ final discoverFilterProvider =
   (ref) => DiscoverFilterNotifier(),
 );
 
-// ---------------------------------------------------------------------
-// Categories
-// ---------------------------------------------------------------------
+
 
 final categoriesStreamProvider = StreamProvider<List<Category>>((ref) {
   final repo = ref.watch(discoverRepositoryProvider);
   return repo.watchCategories();
 });
 
-// ---------------------------------------------------------------------
-// Worker list
-// ---------------------------------------------------------------------
 
-/// Raw Firestore stream, scoped by category + district only. Only
-/// re-subscribes to Firestore when category or district change — NOT on
-/// every search-box keystroke or sort-chip tap.
 final _rawWorkersProvider = StreamProvider<List<Worker>>((ref) {
   final filters = ref.watch(discoverFilterProvider);
   final repo = ref.watch(discoverRepositoryProvider);
@@ -105,9 +84,7 @@ final _rawWorkersProvider = StreamProvider<List<Worker>>((ref) {
   );
 });
 
-/// What `DiscoverScreen` actually watches. Applies search text and sort
-/// order client-side on top of the raw Firestore stream above, so those
-/// interactions stay instant and never re-hit Firestore.
+
 final discoverWorkersProvider = Provider<AsyncValue<List<Worker>>>((ref) {
   final filters = ref.watch(discoverFilterProvider);
   final rawAsync = ref.watch(_rawWorkersProvider);
@@ -142,9 +119,6 @@ final discoverWorkersProvider = Provider<AsyncValue<List<Worker>>>((ref) {
   });
 });
 
-// ---------------------------------------------------------------------
-// Worker detail
-// ---------------------------------------------------------------------
 
 class WorkerDetail {
   const WorkerDetail({this.worker, this.reviews = const []});
@@ -153,10 +127,7 @@ class WorkerDetail {
   final List<Review> reviews;
 }
 
-/// Combines the worker doc stream and the reviews stream into one, so both
-/// update live independently (e.g. the worker's `isOpen` flag flips
-/// instantly if they toggle availability while the client is viewing their
-/// profile, without needing a matching review update to trigger a re-emit).
+
 Stream<WorkerDetail> _combineWorkerDetail(
   Stream<Worker?> workerStream,
   Stream<List<Review>> reviewsStream,
