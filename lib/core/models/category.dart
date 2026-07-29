@@ -1,17 +1,31 @@
 import 'package:flutter/material.dart';
 
-/// Category shown in the Home screen horizontal list.
+/// Category shown in the Home screen horizontal list, and used to filter
+/// workers on the Discover screen.
 class Category {
   const Category({
+    this.id = '',
     required this.name,
     required this.icon,
   });
 
+  /// Kept for backward compatibility with any existing call sites that
+  /// don't have a Firestore doc id on hand.
   factory Category.fromJson(Map<String, dynamic> json) => Category(
         name: json['name'] as String? ?? '',
         icon: iconFor(json['iconName'] as String?),
       );
 
+  /// Use this when reading from a Firestore `categories` document, so the
+  /// category carries its doc id (needed to filter workers by category).
+  factory Category.fromFirestore(String id, Map<String, dynamic> json) =>
+      Category(
+        id: id,
+        name: json['name'] as String? ?? '',
+        icon: iconFor(json['iconName'] as String?),
+      );
+
+  final String id;
   final String name;
   final IconData icon;
 
