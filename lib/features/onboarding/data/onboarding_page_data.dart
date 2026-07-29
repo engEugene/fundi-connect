@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../config/theme/app_text_styles.dart';
 import '../widgets/onboarding_badge.dart';
+import '../widgets/onboarding_layout.dart';
 
 /// One line of the onboarding headline, either white or accent (gold).
 class TitleLine {
@@ -34,52 +35,40 @@ class OnboardingPageData {
 
 /// Owner: Onboarding team (Feature 1)
 ///
-/// Badge positions are eyeballed from the Figma screenshots (no dev-mode
-/// access) — nudge the `top`/`left`/`right` values here if anything sits
-/// a few px off once you compare against the design on a real device.
+/// Badge positions come from [OnboardingLayout], measured directly from
+/// the Figma export. All 3 pages share that exact geometry — only the
+/// copy/icons in each slot differ here.
 List<OnboardingPageData> buildOnboardingPages() {
   return [
     // Page 1 — Find trusted tradesmen near you
     OnboardingPageData(
       imageAsset: 'assets/images/onboarding/onboarding_1.png',
       badges: [
-        const Positioned(
-          top: 36,
-          left: 8,
-          child: OnboardingBadge(
+        OnboardingLayout.topLeft(
+          child: const OnboardingBadge(
             icon: Icons.star_rounded,
             label: '4.9',
             iconTrailing: true,
           ),
         ),
-        const Positioned(
-          top: 78,
-          right: 4,
-          child: OnboardingBadge(
+        OnboardingLayout.topRight(
+          child: const OnboardingBadge(
             icon: Icons.bolt_rounded,
             label: 'Plumber',
             backgroundColor: AppColors.secondary,
             foregroundColor: AppColors.onSecondary,
           ),
         ),
-        Positioned(
-          top: 206,
-          left: 0,
-          right: 0,
-          child: Align(
-            alignment: const Alignment(-0.15, 0),
-            child: const OnboardingBadge(
-              icon: Icons.build_rounded,
-              label: 'Verified',
-              backgroundColor: AppColors.secondary,
-              foregroundColor: AppColors.onSecondary,
-            ),
+        OnboardingLayout.overlap(
+          child: const OnboardingBadge(
+            icon: Icons.build_rounded,
+            label: 'Verified',
+            backgroundColor: AppColors.secondary,
+            foregroundColor: AppColors.onSecondary,
           ),
         ),
-        const Positioned(
-          top: 238,
-          right: 12,
-          child: OnboardingBadge(
+        OnboardingLayout.extra(
+          child: const OnboardingBadge(
             icon: Icons.location_on_rounded,
             label: '0.8 km',
           ),
@@ -101,37 +90,25 @@ List<OnboardingPageData> buildOnboardingPages() {
     OnboardingPageData(
       imageAsset: 'assets/images/onboarding/onboarding_2.png',
       badges: [
-        const Positioned(
-          top: 36,
-          left: 8,
-          child: OnboardingBadge(label: 'Today, 2:00 PM'),
+        OnboardingLayout.topLeft(
+          child: const OnboardingBadge(label: 'Today, 2:00 PM'),
         ),
-        const Positioned(
-          top: 78,
-          right: 4,
-          child: OnboardingBadge(
+        OnboardingLayout.topRight(
+          child: const OnboardingBadge(
             icon: Icons.account_balance_wallet_rounded,
             label: '5,000 Rwf',
           ),
         ),
-        Positioned(
-          top: 206,
-          left: 0,
-          right: 0,
-          child: Align(
-            alignment: const Alignment(-0.15, 0),
-            child: const OnboardingBadge(
-              icon: Icons.check_circle_rounded,
-              label: 'Booked!',
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-            ),
+        OnboardingLayout.overlap(
+          child: const OnboardingBadge(
+            icon: Icons.check_circle_rounded,
+            label: 'Booked!',
+            backgroundColor: AppColors.success,
+            foregroundColor: Colors.white,
           ),
         ),
-        const Positioned(
-          top: 240,
-          right: 8,
-          child: OnboardingBadge(
+        OnboardingLayout.extra(
+          child: const OnboardingBadge(
             icon: Icons.shield_rounded,
             label: 'Secure Pay',
             backgroundColor: AppColors.secondary,
@@ -154,24 +131,18 @@ List<OnboardingPageData> buildOnboardingPages() {
     OnboardingPageData(
       imageAsset: 'assets/images/onboarding/onboarding_3.png',
       badges: [
-        const Positioned(
-          top: 36,
-          left: 8,
-          child: OnboardingStarRow(filled: 0),
+        OnboardingLayout.topLeft(
+          child: const OnboardingStarRow(filled: 0),
         ),
-        const Positioned(
-          top: 78,
-          right: 4,
-          child: OnboardingBadge(
+        OnboardingLayout.topRight(
+          child: const OnboardingBadge(
             icon: Icons.thumb_up_rounded,
             label: '98%',
             backgroundColor: AppColors.secondary,
             foregroundColor: AppColors.onSecondary,
           ),
         ),
-        Positioned(
-          top: 218,
-          right: 4,
+        OnboardingLayout.extra(
           child: OnboardingBadge(
             backgroundColor: AppColors.secondary,
             child: Text(
