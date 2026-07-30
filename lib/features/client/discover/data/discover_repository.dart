@@ -5,71 +5,66 @@ import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/services/firestore_service.dart';
 
+
 class DiscoverRepository {
-  DiscoverRepository({FirestoreService? firestoreService})
-      : _firestore = firestoreService ?? const FirestoreService();
+  const DiscoverRepository(this._firestore);
 
   final FirestoreService _firestore;
 
+  
+  Stream<List<Worker>> watchWorkers({String? category, String? district}) {
+    Query<Map<String, dynamic>> query = _firestore.workers;
+
+    if (category != null && category.isNotEmpty && category != 'All') {
+      query = query.where('category', isEqualTo: category);
+    }
+    if (district != null && district.isNotEmpty) {
+      query = query.where('district', isEqualTo: district);
+    }
+
+    return query.snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Worker.fromJson(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  
+  Stream<Worker?> watchWorker(String workerId) {
+    return _firestore.workerDoc(workerId).snapshots().map((doc) {
+      final data = doc.data();
+      if (data == null) return null;
+      return Worker.fromJson(doc.id, data);
+    });
+  }
+
+ 
+  Stream<List<Review>> watchReviews(String workerId) {
+    return _firestore.reviews
+        .where('tradesmanId', isEqualTo: workerId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Review.fromJson(doc.id, doc.data()))
+              .toList(),
+        );
+  }
+
+  /// Streams active categories, in display order.
+  ///
+  /// NOTE: same as above — `isActive` equality + `orderBy displayOrder`
+  /// needs a composite index. See the note at the bottom of this file.
   Stream<List<Category>> watchCategories() {
     return _firestore.categories
         .where('isActive', isEqualTo: true)
         .orderBy('displayOrder')
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Category.fromJson(doc.data())).toList());
-  }
-
-  /// Search and sort stay client-side on purpose: an equality-only Firestore
-  /// query needs no composite index. Adding an `orderBy` here requires one.
-  Future<List<Worker>> getWorkers({
-    String? category,
-    String searchQuery = '',
-    String filter = 'All',
-  }) async {
-    Query<Map<String, dynamic>> query = _firestore.workers;
-    if (category != null && category.isNotEmpty && category != 'All') {
-      query = query.where('category', isEqualTo: category);
-    }
-
-    final snapshot = await query.get();
-    var workers =
-        snapshot.docs.map((doc) => Worker.fromJson(doc.id, doc.data())).toList();
-
-    final term = searchQuery.trim().toLowerCase();
-    if (term.isNotEmpty) {
-      workers = workers
-          .where((w) =>
-              w.name.toLowerCase().contains(term) ||
-              w.category.toLowerCase().contains(term))
-          .toList();
-    }
-
-    switch (filter) {
-      case 'Top Rated':
-        workers.sort((a, b) => b.rating.compareTo(a.rating));
-      case 'Price ↑':
-        workers.sort((a, b) => a.hourlyRate.compareTo(b.hourlyRate));
-      case 'Available':
-        workers = workers.where((w) => w.isOpen).toList();
-    }
-
-    return workers;
-  }
-
-  Future<Worker?> getWorkerById(String id) async {
-    final doc = await _firestore.workerDoc(id).get();
-    final data = doc.data();
-    if (data == null) return null;
-    return Worker.fromJson(doc.id, data);
-  }
-
-  Future<List<Review>> getWorkerReviews(String workerId) async {
-    final snapshot = await _firestore.reviews
-        .where('workerId', isEqualTo: workerId)
-        .orderBy('createdAt', descending: true)
-        .get();
-
-    return snapshot.docs.map((doc) => Review.fromJson(doc.id, doc.data())).toList();
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Category.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 }
+

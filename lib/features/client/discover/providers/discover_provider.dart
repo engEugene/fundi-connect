@@ -1,87 +1,186 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/category.dart';
 import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../data/discover_repository.dart';
 
+
+
 final discoverRepositoryProvider = Provider<DiscoverRepository>((ref) {
-  return DiscoverRepository();
+  return const DiscoverRepository(FirestoreService());
 });
 
-final categoriesStreamProvider = StreamProvider<List<Category>>((ref) {
-  return ref.watch(discoverRepositoryProvider).watchCategories();
-});
-
-class DiscoverFilterState {
-  const DiscoverFilterState({
+class DiscoverFilters {
+  const DiscoverFilters({
     this.searchQuery = '',
     this.category = 'All',
     this.filter = 'All',
+    this.district = 'Kigali',
   });
 
   final String searchQuery;
   final String category;
   final String filter;
+  final String? district;
 
-  DiscoverFilterState copyWith({
+  DiscoverFilters copyWith({
     String? searchQuery,
     String? category,
     String? filter,
   }) {
-    return DiscoverFilterState(
+    return DiscoverFilters(
       searchQuery: searchQuery ?? this.searchQuery,
       category: category ?? this.category,
       filter: filter ?? this.filter,
+      district: district,
     );
   }
 }
 
-/// Deliberately not autoDispose: Home sets the category before navigating to
-/// Discover, so the state has to outlive the moment neither screen listens.
-final discoverFilterProvider =
-    NotifierProvider<DiscoverFilterNotifier, DiscoverFilterState>(
-  DiscoverFilterNotifier.new,
-);
+class DiscoverFilterNotifier extends StateNotifier<DiscoverFilters> {
+  DiscoverFilterNotifier() : super(const DiscoverFilters());
 
-class DiscoverFilterNotifier extends Notifier<DiscoverFilterState> {
-  @override
-  DiscoverFilterState build() => const DiscoverFilterState();
+  void setSearchQuery(String value) =>
+      state = state.copyWith(searchQuery: value);
 
-  void setSearchQuery(String query) => state = state.copyWith(searchQuery: query);
+  void setCategory(String value) => state = state.copyWith(category: value);
 
-  void setCategory(String category) => state = state.copyWith(category: category);
+  void setFilter(String value) => state = state.copyWith(filter: value);
 
-  void setFilter(String filter) => state = state.copyWith(filter: filter);
+
+  void setDistrict(String? value) {
+    state = DiscoverFilters(
+      searchQuery: state.searchQuery,
+      category: state.category,
+      filter: state.filter,
+      district: value,
+    );
+  }
 }
 
-final discoverWorkersProvider = FutureProvider.autoDispose<List<Worker>>((ref) {
-  final filters = ref.watch(discoverFilterProvider);
+final discoverFilterProvider =
+    StateNotifierProvider<DiscoverFilterNotifier, DiscoverFilters>(
+  (ref) => DiscoverFilterNotifier(),
+);
 
-  return ref.watch(discoverRepositoryProvider).getWorkers(
-        category: filters.category,
-        searchQuery: filters.searchQuery,
-        filter: filters.filter,
-      );
+
+
+final categoriesStreamProvider = StreamProvider<List<Category>>((ref) {
+  final repo = ref.watch(discoverRepositoryProvider);
+  return repo.watchCategories();
 });
 
-class WorkerDetailData {
-  const WorkerDetailData({required this.worker, required this.reviews});
+
+final _rawWorkersProvider = StreamProvider<List<Worker>>((ref) {
+  final filters = ref.watch(discoverFilterProvider);
+  final repo = ref.watch(discoverRepositoryProvider);
+  return repo.watchWorkers(
+    category: filters.category,
+    district: filters.district,
+  );
+});
+
+
+final discoverWorkersProvider = Provider<AsyncValue<List<Worker>>>((ref) {
+  final filters = ref.watch(discoverFilterProvider);
+  final rawAsync = ref.watch(_rawWorkersProvider);
+
+  return rawAsync.whenData((workers) {
+    var result = workers;
+
+    final query = filters.searchQuery.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result
+          .where(
+            (w) =>
+                w.name.toLowerCase().contains(query) ||
+                w.role.toLowerCase().contains(query),
+          )
+          .toList();
+    }
+
+    switch (filters.filter) {
+      case 'Top Rated':
+        result = [...result]..sort((a, b) => b.rating.compareTo(a.rating));
+      case 'Price ↑':
+        result = [...result]
+          ..sort((a, b) => a.hourlyRate.compareTo(b.hourlyRate));
+      case 'Available':
+        result = result.where((w) => w.isOpen).toList();
+      default:
+        break;
+    }
+
+    return result;
+  });
+});
+
+
+class WorkerDetail {
+  const WorkerDetail({this.worker, this.reviews = const []});
 
   final Worker? worker;
   final List<Review> reviews;
 }
 
-final workerDetailProvider =
-    FutureProvider.autoDispose.family<WorkerDetailData, String>((ref, id) async {
-  final repository = ref.watch(discoverRepositoryProvider);
-  final worker = await repository.getWorkerById(id);
-  if (worker == null) {
-    return const WorkerDetailData(worker: null, reviews: []);
+
+Stream<WorkerDetail> _combineWorkerDetail(
+  Stream<Worker?> workerStream,
+  Stream<List<Review>> reviewsStream,
+) {
+  late final StreamController<WorkerDetail> controller;
+
+  Worker? latestWorker;
+  List<Review> latestReviews = const [];
+  var workerReady = false;
+  var reviewsReady = false;
+
+  StreamSubscription<Worker?>? workerSub;
+  StreamSubscription<List<Review>>? reviewsSub;
+
+  void emit() {
+    if (workerReady && reviewsReady) {
+      controller.add(WorkerDetail(worker: latestWorker, reviews: latestReviews));
+    }
   }
 
-  return WorkerDetailData(
-    worker: worker,
-    reviews: await repository.getWorkerReviews(id),
+  controller = StreamController<WorkerDetail>(
+    onListen: () {
+      workerSub = workerStream.listen(
+        (worker) {
+          latestWorker = worker;
+          workerReady = true;
+          emit();
+        },
+        onError: controller.addError,
+      );
+      reviewsSub = reviewsStream.listen(
+        (reviews) {
+          latestReviews = reviews;
+          reviewsReady = true;
+          emit();
+        },
+        onError: controller.addError,
+      );
+    },
+    onCancel: () async {
+      await workerSub?.cancel();
+      await reviewsSub?.cancel();
+    },
+  );
+
+  return controller.stream;
+}
+
+final workerDetailProvider =
+    StreamProvider.family<WorkerDetail, String>((ref, workerId) {
+  final repo = ref.watch(discoverRepositoryProvider);
+  return _combineWorkerDetail(
+    repo.watchWorker(workerId),
+    repo.watchReviews(workerId),
   );
 });
