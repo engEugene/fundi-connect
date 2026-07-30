@@ -1,52 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
+import '../../../../core/models/booking.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../discover/providers/discover_provider.dart';
+import '../providers/booking_providers.dart';
 
-class ConfirmBookingScreen extends StatefulWidget {
-  const ConfirmBookingScreen({super.key});
+/// Client flow: pick service, date/time, location and payment, then create a
+/// `pending` booking in Firestore for the selected worker.
+class ConfirmBookingScreen extends ConsumerStatefulWidget {
+  const ConfirmBookingScreen({super.key, this.workerId});
+
+  final String? workerId;
 
   @override
-  State<ConfirmBookingScreen> createState() => _ConfirmBookingScreenState();
+  ConsumerState<ConfirmBookingScreen> createState() =>
+      _ConfirmBookingScreenState();
 }
 
-class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
-  final _services = const [
-    'Writing & Installation',
+class _ConfirmBookingScreenState extends ConsumerState<ConfirmBookingScreen> {
+  static const _services = [
+    'Installation',
     'Repair & Maintenance',
     'Consultation',
   ];
 
-  final _paymentMethods = const [
+  static const _paymentMethods = [
     _PaymentOption('MTN MoMo', Icons.phone_android),
     _PaymentOption('Airtel Money', Icons.phone_android),
     _PaymentOption('Cash', Icons.payments_outlined),
   ];
 
-  late String _selectedService;
-  late DateTime _selectedDate;
-  late TimeOfDay _selectedTime;
-  final _locationController = TextEditingController(
-    text: 'KG 14 Ave, Kacyiru, Kigali',
-  );
-  late String _selectedPayment;
+  static const int _estimatedHours = 2;
+  static const double _platformFeeRate = 0.05;
 
-  final _worker = Worker.nearby[0]; // Jean Pierre Habimana
-  final double _serviceFee = 12000;
-  final double _platformFee = 800;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedService = _services.first;
-    _selectedDate = DateTime(2025, 7, 15);
-    _selectedTime = const TimeOfDay(hour: 10, minute: 0);
-    _selectedPayment = _paymentMethods.first.name;
-  }
+  late String _selectedService = _services.first;
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
+  final _locationController = TextEditingController();
+  late String _selectedPayment = _paymentMethods.first.name;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -54,7 +53,9 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
     super.dispose();
   }
 
-  double get _total => _serviceFee + _platformFee;
+  double _serviceFee(Worker worker) => worker.hourlyRate * _estimatedHours;
+  double _platformFee(Worker worker) =>
+      (_serviceFee(worker) * _platformFeeRate).roundToDouble();
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -62,66 +63,86 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: AppColors.primary,
-                ),
-          ),
-          child: child!,
-        );
-      },
     );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
+    if (picked != null) setState(() => _selectedDate = picked);
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: AppColors.primary,
-                ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
-    }
+    final picked = await showTimePicker(context: context, initialTime: _selectedTime);
+    if (picked != null) setState(() => _selectedTime = picked);
   }
+
+  DateTime get _scheduledAt => DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
 
   String get _formattedDate {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    final date = _selectedDate;
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    final d = _selectedDate;
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
   String get _formattedTime {
-    final hour = _selectedTime.hourOfPeriod;
+    final hour = _selectedTime.hourOfPeriod == 0 ? 12 : _selectedTime.hourOfPeriod;
     final minute = _selectedTime.minute.toString().padLeft(2, '0');
     final period = _selectedTime.period == DayPeriod.am ? 'AM' : 'PM';
     return '$hour:$minute $period';
+  }
+
+  Future<void> _confirm(Worker worker) async {
+    final user = ref.read(authProvider).authenticatedUser;
+    if (user == null) {
+      _showMessage('Sign in to book a tradesman.');
+      return;
+    }
+    if (_locationController.text.trim().isEmpty) {
+      _showMessage('Please enter your location.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final booking = Booking(
+      id: '',
+      worker: worker,
+      serviceType: _selectedService,
+      date: _scheduledAt,
+      time: _formattedTime,
+      location: _locationController.text.trim(),
+      status: BookingStatus.upcoming,
+      statusRaw: BookingLifecycle.pending,
+      serviceFee: _serviceFee(worker),
+      platformFee: _platformFee(worker),
+      paymentMethod: _selectedPayment,
+      clientId: user.uid,
+      clientName: user.displayName ?? 'Client',
+      clientImageUrl: user.photoUrl ?? '',
+      estimatedHours: _estimatedHours,
+    );
+
+    try {
+      final id = await ref.read(bookingRepositoryProvider).createBooking(booking);
+      if (!mounted) return;
+      _showMessage('Booking request sent');
+      context.go('${RouteNames.bookings}/$id');
+    } catch (_) {
+      _showMessage('Could not create the booking. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -135,71 +156,110 @@ class _ConfirmBookingScreenState extends State<ConfirmBookingScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(child: _buildBody()),
+    );
+  }
+
+  Widget _buildBody() {
+    final id = widget.workerId;
+    if (id == null || id.isEmpty) {
+      return const Center(child: Text('No tradesman selected.'));
+    }
+
+    final workerAsync = ref.watch(workerDetailProvider(id));
+    return workerAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (_, _) => const Center(
+        child: Text("Couldn't load this tradesman. Please try again."),
+      ),
+      data: (data) {
+        final worker = data.worker;
+        if (worker == null) {
+          return const Center(child: Text('Tradesman not found.'));
+        }
+        return _buildForm(worker);
+      },
+    );
+  }
+
+  Widget _buildForm(Worker worker) {
+    final serviceFee = _serviceFee(worker);
+    final platformFee = _platformFee(worker);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _WorkerHeader(worker: worker),
+          const SizedBox(height: 24),
+          _SectionTitle('Service Type'),
+          const SizedBox(height: 8),
+          _ServiceDropdown(
+            value: _selectedService,
+            items: _services,
+            onChanged: (value) => setState(() => _selectedService = value!),
+          ),
+          const SizedBox(height: 20),
+          Row(
             children: [
-              _WorkerHeader(worker: _worker),
-              const SizedBox(height: 24),
-              _SectionTitle('Service Type'),
-              const SizedBox(height: 8),
-              _ServiceDropdown(
-                value: _selectedService,
-                items: _services,
-                onChanged: (value) => setState(() => _selectedService = value!),
+              Expanded(
+                child: _PickerField(
+                  label: 'Date',
+                  value: _formattedDate,
+                  icon: Icons.calendar_today_outlined,
+                  onTap: _pickDate,
+                ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PickerField(
-                      label: 'Date',
-                      value: _formattedDate,
-                      icon: Icons.calendar_today_outlined,
-                      onTap: _pickDate,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _PickerField(
-                      label: 'Time',
-                      value: _formattedTime,
-                      icon: Icons.access_time,
-                      onTap: _pickTime,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _SectionTitle('Your Location'),
-              const SizedBox(height: 8),
-              _LocationField(controller: _locationController),
-              const SizedBox(height: 24),
-              _SectionTitle('Price Estimate'),
-              const SizedBox(height: 8),
-              _PriceCard(
-                serviceFee: _serviceFee,
-                platformFee: _platformFee,
-                total: _total,
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle('Payment Method'),
-              const SizedBox(height: 8),
-              _PaymentMethodList(
-                options: _paymentMethods,
-                selected: _selectedPayment,
-                onSelected: (value) => setState(() => _selectedPayment = value),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () => context.push('${RouteNames.bookings}/b1'),
-                child: const Text('Confirm Booking'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _PickerField(
+                  label: 'Time',
+                  value: _formattedTime,
+                  icon: Icons.access_time,
+                  onTap: _pickTime,
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 20),
+          _SectionTitle('Your Location'),
+          const SizedBox(height: 8),
+          _LocationField(controller: _locationController),
+          const SizedBox(height: 24),
+          _SectionTitle('Price Estimate'),
+          const SizedBox(height: 8),
+          _PriceCard(
+            serviceFee: serviceFee,
+            platformFee: platformFee,
+            total: serviceFee + platformFee,
+            hours: _estimatedHours,
+          ),
+          const SizedBox(height: 24),
+          _SectionTitle('Payment Method'),
+          const SizedBox(height: 8),
+          _PaymentMethodList(
+            options: _paymentMethods,
+            selected: _selectedPayment,
+            onSelected: (value) => setState(() => _selectedPayment = value),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: _isSubmitting ? null : () => _confirm(worker),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: AppColors.onPrimary,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Confirm Booking'),
+          ),
+        ],
       ),
     );
   }
@@ -230,11 +290,7 @@ class _WorkerHeader extends StatelessWidget {
                 width: 64,
                 height: 64,
                 color: AppColors.primaryLight,
-                child: const Icon(
-                  Icons.person,
-                  color: AppColors.onPrimary,
-                  size: 32,
-                ),
+                child: const Icon(Icons.person, color: AppColors.onPrimary, size: 32),
               ),
             ),
           ),
@@ -245,9 +301,7 @@ class _WorkerHeader extends StatelessWidget {
               children: [
                 Text(
                   worker.name,
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.onPrimary,
-                  ),
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -255,33 +309,24 @@ class _WorkerHeader extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.secondary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Handyman',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.onSecondary,
-                        ),
+                        worker.role,
+                        style: AppTextStyles.labelSmall
+                            .copyWith(color: AppColors.onSecondary),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(
-                      Icons.star,
-                      color: AppColors.secondary,
-                      size: 14,
-                    ),
+                    const Icon(Icons.star, color: AppColors.secondary, size: 14),
                     const SizedBox(width: 2),
                     Text(
                       '${worker.rating}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.onPrimary,
-                      ),
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.onPrimary),
                     ),
                   ],
                 ),
@@ -293,15 +338,12 @@ class _WorkerHeader extends StatelessWidget {
             children: [
               Text(
                 Formatters.formatNumber(worker.hourlyRate),
-                style: AppTextStyles.titleLarge.copyWith(
-                  color: AppColors.onPrimary,
-                ),
+                style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary),
               ),
               Text(
                 'Rwf/hr',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.onPrimary.withValues(alpha: 0.7),
-                ),
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.onPrimary.withValues(alpha: 0.7)),
               ),
             ],
           ),
@@ -317,9 +359,8 @@ class _SectionTitle extends StatelessWidget {
   final String title;
 
   @override
-  Widget build(BuildContext context) {
-    return Text(title, style: AppTextStyles.titleMedium);
-  }
+  Widget build(BuildContext context) =>
+      Text(title, style: AppTextStyles.titleMedium);
 }
 
 class _ServiceDropdown extends StatelessWidget {
@@ -349,13 +390,11 @@ class _ServiceDropdown extends StatelessWidget {
           icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textMuted),
           style: AppTextStyles.bodyMedium,
           dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
           onChanged: onChanged,
-          items: items.map((item) {
-            return DropdownMenuItem(
-              value: item,
-              child: Text(item),
-            );
-          }).toList(),
+          items: items
+              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+              .toList(),
         ),
       ),
     );
@@ -389,19 +428,13 @@ class _PickerField extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: AppTextStyles.bodySmall,
-            ),
+            Text(label, style: AppTextStyles.bodySmall),
             const SizedBox(height: 8),
             Row(
               children: [
                 Icon(icon, size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(
-                  value,
-                  style: AppTextStyles.bodyMedium,
-                ),
+                Text(value, style: AppTextStyles.bodyMedium),
               ],
             ),
           ],
@@ -434,16 +467,13 @@ class _LocationField extends StatelessWidget {
               controller: controller,
               style: AppTextStyles.bodyMedium,
               decoration: const InputDecoration(
+                hintText: 'e.g. KG 14 Ave, Kacyiru, Kigali',
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(vertical: 18),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: () {},
-            child: const Text('Change'),
           ),
         ],
       ),
@@ -456,11 +486,13 @@ class _PriceCard extends StatelessWidget {
     required this.serviceFee,
     required this.platformFee,
     required this.total,
+    required this.hours,
   });
 
   final double serviceFee;
   final double platformFee;
   final double total;
+  final int hours;
 
   @override
   Widget build(BuildContext context) {
@@ -473,7 +505,7 @@ class _PriceCard extends StatelessWidget {
       child: Column(
         children: [
           _PriceRow(
-            label: 'Service fee (2 hrs)',
+            label: 'Service fee ($hours hrs)',
             value: '${Formatters.formatNumber(serviceFee)} Rwf',
           ),
           const SizedBox(height: 8),
@@ -494,11 +526,7 @@ class _PriceCard extends StatelessWidget {
 }
 
 class _PriceRow extends StatelessWidget {
-  const _PriceRow({
-    required this.label,
-    required this.value,
-    this.isTotal = false,
-  });
+  const _PriceRow({required this.label, required this.value, this.isTotal = false});
 
   final String label;
   final String value;
@@ -513,17 +541,13 @@ class _PriceRow extends StatelessWidget {
           label,
           style: isTotal
               ? AppTextStyles.titleMedium
-              : AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              : AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
         ),
         Text(
           value,
           style: isTotal
               ? AppTextStyles.titleMedium.copyWith(color: AppColors.primary)
-              : AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              : AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -569,9 +593,7 @@ class _PaymentMethodList extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryLight
-                          : AppColors.surface,
+                      color: isSelected ? AppColors.primaryLight : AppColors.surface,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Icon(

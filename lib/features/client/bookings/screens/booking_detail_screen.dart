@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
@@ -6,78 +7,88 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/booking.dart';
 import '../../../../core/utils/formatters.dart';
+import '../providers/booking_providers.dart';
 
-class BookingDetailScreen extends StatelessWidget {
+class BookingDetailScreen extends ConsumerWidget {
   const BookingDetailScreen({super.key, required this.bookingId});
 
   final String bookingId;
 
   @override
-  Widget build(BuildContext context) {
-    final booking = Booking.findById(bookingId);
-
-    if (booking == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Booking Details')),
-        body: const Center(child: Text('Booking not found')),
-      );
-    }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bookingAsync = ref.watch(bookingDetailProvider(bookingId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Booking Details'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-          ),
-        ],
+      appBar: AppBar(title: const Text('Booking Details')),
+      body: bookingAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, _) => const Center(
+          child: Text("Couldn't load this booking. Please try again."),
+        ),
+        data: (booking) {
+          if (booking == null) {
+            return const Center(child: Text('Booking not found'));
+          }
+          return _BookingDetailBody(booking: booking);
+        },
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _WorkerCard(booking: booking),
-              const SizedBox(height: 24),
-              _StatusCard(booking: booking),
-              const SizedBox(height: 24),
-              _SectionTitle('Service Details'),
-              const SizedBox(height: 12),
-              _DetailItem(
-                icon: Icons.handyman_outlined,
-                label: 'Service Type',
-                value: booking.serviceType,
-              ),
-              _DetailItem(
-                icon: Icons.calendar_today_outlined,
-                label: 'Date',
-                value: _formatDate(booking.date),
-              ),
-              _DetailItem(
-                icon: Icons.access_time,
-                label: 'Time',
-                value: booking.time,
-              ),
-              _DetailItem(
-                icon: Icons.location_on_outlined,
-                label: 'Location',
-                value: booking.location,
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle('Price Estimate'),
-              const SizedBox(height: 12),
-              _PriceBreakdown(booking: booking),
-              const SizedBox(height: 24),
-              _SectionTitle('Payment Method'),
-              const SizedBox(height: 12),
-              _PaymentMethod(paymentMethod: booking.paymentMethod ?? 'Cash'),
-              const SizedBox(height: 32),
-              _ActionButtons(booking: booking),
-            ],
-          ),
+    );
+  }
+}
+
+class _BookingDetailBody extends StatelessWidget {
+  const _BookingDetailBody({required this.booking});
+
+  final Booking booking;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _WorkerCard(booking: booking),
+            const SizedBox(height: 24),
+            _StatusCard(booking: booking),
+            const SizedBox(height: 24),
+            _SectionTitle('Service Details'),
+            const SizedBox(height: 12),
+            _DetailItem(
+              icon: Icons.handyman_outlined,
+              label: 'Service Type',
+              value: booking.serviceType.isEmpty ? '—' : booking.serviceType,
+            ),
+            _DetailItem(
+              icon: Icons.calendar_today_outlined,
+              label: 'Date',
+              value: _formatDate(booking.date),
+            ),
+            _DetailItem(
+              icon: Icons.access_time,
+              label: 'Time',
+              value: booking.time.isEmpty ? '—' : booking.time,
+            ),
+            _DetailItem(
+              icon: Icons.location_on_outlined,
+              label: 'Location',
+              value: booking.location.isEmpty ? '—' : booking.location,
+            ),
+            const SizedBox(height: 24),
+            _SectionTitle('Price Estimate'),
+            const SizedBox(height: 12),
+            _PriceBreakdown(booking: booking),
+            const SizedBox(height: 24),
+            _SectionTitle('Payment Method'),
+            const SizedBox(height: 12),
+            _PaymentMethod(paymentMethod: booking.paymentMethod ?? 'Cash'),
+            const SizedBox(height: 32),
+            _ActionButtons(booking: booking),
+          ],
         ),
       ),
     );
@@ -109,11 +120,7 @@ class _WorkerCard extends StatelessWidget {
                 width: 72,
                 height: 72,
                 color: AppColors.primaryLight,
-                child: const Icon(
-                  Icons.person,
-                  color: AppColors.onPrimary,
-                  size: 36,
-                ),
+                child: const Icon(Icons.person, color: AppColors.onPrimary, size: 36),
               ),
             ),
           ),
@@ -124,47 +131,31 @@ class _WorkerCard extends StatelessWidget {
               children: [
                 Text(
                   booking.worker.name,
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.onPrimary,
-                  ),
+                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.onPrimary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   booking.worker.role,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.onPrimary.withValues(alpha: 0.8),
-                  ),
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: AppColors.onPrimary.withValues(alpha: 0.8)),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(
-                      Icons.star,
-                      color: AppColors.secondary,
-                      size: 16,
-                    ),
+                    const Icon(Icons.star, color: AppColors.secondary, size: 16),
                     const SizedBox(width: 4),
                     Text(
                       '${booking.worker.rating}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '(${booking.worker.reviewCount})',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.onPrimary.withValues(alpha: 0.7),
-                      ),
+                      style: AppTextStyles.bodyMedium
+                          .copyWith(color: AppColors.onPrimary),
                     ),
                     const SizedBox(width: 12),
                     Text(
                       '${Formatters.formatNumber(booking.worker.hourlyRate)} Rwf/hr',
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: AppColors.secondary,
-                      ),
+                      style: AppTextStyles.labelMedium
+                          .copyWith(color: AppColors.secondary),
                     ),
                   ],
                 ),
@@ -194,13 +185,21 @@ class _StatusCard extends StatelessWidget {
   }
 
   String get _label {
-    switch (booking.status) {
-      case BookingStatus.upcoming:
-        return 'Upcoming booking';
-      case BookingStatus.completed:
+    switch (booking.statusRaw) {
+      case BookingLifecycle.pending:
+        return 'Waiting for the tradesman to accept';
+      case BookingLifecycle.accepted:
+        return 'Accepted — upcoming booking';
+      case BookingLifecycle.inProgress:
+        return 'Job in progress';
+      case BookingLifecycle.completed:
         return 'Completed booking';
-      case BookingStatus.cancelled:
+      case BookingLifecycle.rejected:
+        return 'Declined by the tradesman';
+      case BookingLifecycle.cancelled:
         return 'Cancelled booking';
+      default:
+        return 'Booking';
     }
   }
 
@@ -234,17 +233,12 @@ class _SectionTitle extends StatelessWidget {
   final String title;
 
   @override
-  Widget build(BuildContext context) {
-    return Text(title, style: AppTextStyles.titleMedium);
-  }
+  Widget build(BuildContext context) =>
+      Text(title, style: AppTextStyles.titleMedium);
 }
 
 class _DetailItem extends StatelessWidget {
-  const _DetailItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  const _DetailItem({required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -270,15 +264,9 @@ class _DetailItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: AppTextStyles.bodySmall,
-                ),
+                Text(label, style: AppTextStyles.bodySmall),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: AppTextStyles.bodyMedium,
-                ),
+                Text(value, style: AppTextStyles.bodyMedium),
               ],
             ),
           ),
@@ -304,7 +292,7 @@ class _PriceBreakdown extends StatelessWidget {
       child: Column(
         children: [
           _PriceRow(
-            label: 'Service fee (${booking.serviceType})',
+            label: 'Service fee',
             value: Formatters.formatNumber(booking.serviceFee),
           ),
           const SizedBox(height: 8),
@@ -325,11 +313,7 @@ class _PriceBreakdown extends StatelessWidget {
 }
 
 class _PriceRow extends StatelessWidget {
-  const _PriceRow({
-    required this.label,
-    required this.value,
-    this.isTotal = false,
-  });
+  const _PriceRow({required this.label, required this.value, this.isTotal = false});
 
   final String label;
   final String value;
@@ -344,17 +328,13 @@ class _PriceRow extends StatelessWidget {
           label,
           style: isTotal
               ? AppTextStyles.titleMedium
-              : AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              : AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
         ),
         Text(
           '$value Rwf',
           style: isTotal
               ? AppTextStyles.titleMedium.copyWith(color: AppColors.primary)
-              : AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              : AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -390,48 +370,91 @@ class _PaymentMethod extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              paymentMethod,
-              style: AppTextStyles.bodyMedium,
-            ),
-          ),
-          Icon(
-            Icons.check_circle,
-            color: AppColors.primary,
-            size: 20,
-          ),
+          Expanded(child: Text(paymentMethod, style: AppTextStyles.bodyMedium)),
+          Icon(Icons.check_circle, color: AppColors.primary, size: 20),
         ],
       ),
     );
   }
 }
 
-class _ActionButtons extends StatelessWidget {
+/// Status-dependent actions. The only wired action in this scope is Cancel
+/// (client-side). Rate/reschedule land with the reviews track.
+class _ActionButtons extends ConsumerStatefulWidget {
   const _ActionButtons({required this.booking});
 
   final Booking booking;
 
   @override
+  ConsumerState<_ActionButtons> createState() => _ActionButtonsState();
+}
+
+class _ActionButtonsState extends ConsumerState<_ActionButtons> {
+  bool _isCancelling = false;
+
+  Future<void> _cancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Cancel booking?', style: AppTextStyles.titleLarge),
+        content: Text(
+          'This will notify the tradesman that you no longer need this job.',
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep booking'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Cancel booking'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    setState(() => _isCancelling = true);
+
+    try {
+      await ref.read(bookingRepositoryProvider).cancelBooking(widget.booking.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Booking cancelled')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not cancel. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    switch (booking.status) {
+    switch (widget.booking.status) {
       case BookingStatus.upcoming:
-        return Column(
-          children: [
-            OutlinedButton(
-              onPressed: () {},
-              child: const Text('Reschedule'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
-              ),
-              child: const Text('Cancel Booking'),
-            ),
-          ],
+        return OutlinedButton(
+          onPressed: _isCancelling ? null : _cancel,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.error,
+            side: const BorderSide(color: AppColors.error),
+          ),
+          child: _isCancelling
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: AppColors.error,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Cancel Booking'),
         );
       case BookingStatus.completed:
         return ElevatedButton(
@@ -440,7 +463,9 @@ class _ActionButtons extends StatelessWidget {
         );
       case BookingStatus.cancelled:
         return ElevatedButton(
-          onPressed: () => context.push(RouteNames.confirmBooking),
+          onPressed: () => context.push(
+            '${RouteNames.confirmBooking}?workerId=${widget.booking.worker.id}',
+          ),
           child: const Text('Book Again'),
         );
     }
@@ -449,18 +474,8 @@ class _ActionButtons extends StatelessWidget {
 
 String _formatDate(DateTime date) {
   const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
 }

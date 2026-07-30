@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/booking.dart';
+import '../providers/booking_providers.dart';
 
-class BookingsScreen extends StatefulWidget {
+class BookingsScreen extends ConsumerStatefulWidget {
   const BookingsScreen({super.key});
 
   @override
-  State<BookingsScreen> createState() => _BookingsScreenState();
+  ConsumerState<BookingsScreen> createState() => _BookingsScreenState();
 }
 
-class _BookingsScreenState extends State<BookingsScreen>
+class _BookingsScreenState extends ConsumerState<BookingsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -35,12 +37,10 @@ class _BookingsScreenState extends State<BookingsScreen>
     super.dispose();
   }
 
-  List<Booking> _bookingsFor(BookingStatus status) {
-    return Booking.all.where((b) => b.status == status).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final bookingsAsync = ref.watch(clientBookingsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -64,22 +64,35 @@ class _BookingsScreenState extends State<BookingsScreen>
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _BookingList(
-            bookings: _bookingsFor(BookingStatus.upcoming),
-            showRecentlyCompletedHeader: false,
-          ),
-          _BookingList(
-            bookings: _bookingsFor(BookingStatus.completed),
-            showRecentlyCompletedHeader: true,
-          ),
-          _BookingList(
-            bookings: _bookingsFor(BookingStatus.cancelled),
-            showRecentlyCompletedHeader: false,
-          ),
-        ],
+      body: bookingsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (_, _) => const Center(
+          child: Text("Couldn't load your bookings. Please try again."),
+        ),
+        data: (bookings) {
+          List<Booking> forStatus(BookingStatus status) =>
+              bookings.where((b) => b.status == status).toList();
+
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _BookingList(
+                bookings: forStatus(BookingStatus.upcoming),
+                showRecentlyCompletedHeader: false,
+              ),
+              _BookingList(
+                bookings: forStatus(BookingStatus.completed),
+                showRecentlyCompletedHeader: true,
+              ),
+              _BookingList(
+                bookings: forStatus(BookingStatus.cancelled),
+                showRecentlyCompletedHeader: false,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -116,10 +129,9 @@ class _BookingList extends StatelessWidget {
               ),
             );
           }
-          final booking = bookings[index - 1];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _BookingCard(booking: booking),
+            child: _BookingCard(booking: bookings[index - 1]),
           );
         }
         return Padding(
@@ -173,7 +185,8 @@ class _BookingCard extends StatelessWidget {
     final date = booking.date;
     final day = _weekdayShort(date.weekday);
     final month = _monthShort(date.month);
-    return '$day, ${date.day} $month · ${booking.time}';
+    final time = booking.time.isEmpty ? '' : ' · ${booking.time}';
+    return '$day, ${date.day} $month$time';
   }
 
   @override
@@ -202,10 +215,7 @@ class _BookingCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          booking.worker.role,
-                          style: AppTextStyles.bodySmall,
-                        ),
+                        Text(booking.worker.role, style: AppTextStyles.bodySmall),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -215,9 +225,13 @@ class _BookingCard extends StatelessWidget {
                               color: AppColors.textMuted,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              _formattedDate,
-                              style: AppTextStyles.bodySmall,
+                            Expanded(
+                              child: Text(
+                                _formattedDate,
+                                style: AppTextStyles.bodySmall,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -239,7 +253,8 @@ class _BookingCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: () =>
+                        context.push('${RouteNames.bookings}/${booking.id}'),
                     icon: const Icon(Icons.star_outline, size: 18),
                     label: const Text('Rate'),
                     style: OutlinedButton.styleFrom(
@@ -292,19 +307,23 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 56,
+      height: 56,
+      color: AppColors.tertiary,
+      child: const Icon(Icons.person, color: AppColors.textMuted),
+    );
+
     return ClipOval(
-      child: Image.network(
-        imageUrl,
-        width: 56,
-        height: 56,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: 56,
-          height: 56,
-          color: AppColors.tertiary,
-          child: const Icon(Icons.person, color: AppColors.textMuted),
-        ),
-      ),
+      child: imageUrl.isEmpty
+          ? fallback
+          : Image.network(
+              imageUrl,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => fallback,
+            ),
     );
   }
 }
@@ -343,18 +362,8 @@ String _weekdayShort(int weekday) {
 
 String _monthShort(int month) {
   const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
   return months[month - 1];
 }
