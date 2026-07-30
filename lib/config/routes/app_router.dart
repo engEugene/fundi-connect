@@ -196,6 +196,10 @@ class AppRouter {
             // '/bookings/confirm' and '/bookings/dashboard' don't match ':id'.
             GoRoute(
               path: 'confirm',
+              // Full-screen flow: render on the root navigator so pushing it
+              // from the worker detail (also a root route) doesn't spawn a
+              // second shell with a duplicate _shellNavigatorKey.
+              parentNavigatorKey: rootNavigatorKey,
               builder: (context, state) => client.ConfirmBookingScreen(
                 workerId: state.uri.queryParameters['workerId'],
               ),

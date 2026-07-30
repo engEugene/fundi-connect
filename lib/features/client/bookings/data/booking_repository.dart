@@ -22,11 +22,14 @@ class BookingRepository {
     return doc.id;
   }
 
-  /// Live stream of the signed-in client's bookings, newest first.
+  /// Live stream of the signed-in client's bookings, most recent first.
+  ///
+  /// Orders by `scheduledAt` to reuse the existing `clientId + scheduledAt`
+  /// composite index the team already deployed (avoids a new index).
   Stream<List<Booking>> watchClientBookings(String clientId) {
     return _firestore.bookings
         .where('clientId', isEqualTo: clientId)
-        .orderBy('createdAt', descending: true)
+        .orderBy('scheduledAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Booking.fromJson(doc.id, doc.data()))
