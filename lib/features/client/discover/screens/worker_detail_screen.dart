@@ -358,7 +358,9 @@ class _BookNowBar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: ElevatedButton(
-          onPressed: () => context.push(RouteNames.confirmBooking),
+          onPressed: () => context.push(
+            '${RouteNames.confirmBooking}?workerId=${worker.id}',
+          ),
           child: const Text('Book Now'),
         ),
       ),

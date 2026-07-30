@@ -192,19 +192,23 @@ class AppRouter {
           path: RouteNames.bookings,
           builder: (context, state) => _RoleAwareBookingsScreen(),
           routes: [
+            // Static sub-paths must be declared before the ':id' param route so
+            // '/bookings/confirm' and '/bookings/dashboard' don't match ':id'.
+            GoRoute(
+              path: 'confirm',
+              builder: (context, state) => client.ConfirmBookingScreen(
+                workerId: state.uri.queryParameters['workerId'],
+              ),
+            ),
+            GoRoute(
+              path: 'dashboard',
+              builder: (context, state) => const WorkerDashboardScreen(),
+            ),
             GoRoute(
               path: ':id',
               builder: (context, state) => _RoleAwareBookingDetailScreen(
                 bookingId: state.pathParameters['id']!,
               ),
-            ),
-            GoRoute(
-              path: 'confirm',
-              builder: (context, state) => const client.ConfirmBookingScreen(),
-            ),
-            GoRoute(
-              path: 'dashboard',
-              builder: (context, state) => const WorkerDashboardScreen(),
             ),
           ],
         ),
