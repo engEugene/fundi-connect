@@ -7,6 +7,8 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/booking.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/review_card.dart';
+import '../../../reviews/providers/review_providers.dart';
 import '../providers/booking_providers.dart';
 
 class BookingDetailScreen extends ConsumerWidget {
@@ -378,8 +380,8 @@ class _PaymentMethod extends StatelessWidget {
   }
 }
 
-/// Status-dependent actions. The only wired action in this scope is Cancel
-/// (client-side). Rate/reschedule land with the reviews track.
+/// Status-dependent actions: cancel an upcoming job, rate a completed one, or
+/// rebook a cancelled one.
 class _ActionButtons extends ConsumerStatefulWidget {
   const _ActionButtons({required this.booking});
 
@@ -457,10 +459,7 @@ class _ActionButtonsState extends ConsumerState<_ActionButtons> {
               : const Text('Cancel Booking'),
         );
       case BookingStatus.completed:
-        return ElevatedButton(
-          onPressed: () {},
-          child: const Text('Rate Worker'),
-        );
+        return _CompletedActions(bookingId: widget.booking.id);
       case BookingStatus.cancelled:
         return ElevatedButton(
           onPressed: () => context.push(
@@ -469,6 +468,48 @@ class _ActionButtonsState extends ConsumerState<_ActionButtons> {
           child: const Text('Book Again'),
         );
     }
+  }
+}
+
+/// Actions for a finished job.
+///
+/// Watches [bookingReviewProvider] so the moment the review lands in Firestore
+/// the button is replaced by the review itself — no manual refresh, and no way
+/// to submit a second review the backend would reject.
+class _CompletedActions extends ConsumerWidget {
+  const _CompletedActions({required this.bookingId});
+
+  final String bookingId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewAsync = ref.watch(bookingReviewProvider(bookingId));
+
+    final rateButton = ElevatedButton.icon(
+      onPressed: () => context.push(RouteNames.leaveReviewPath(bookingId)),
+      icon: const Icon(Icons.star_outline, size: 20),
+      label: const Text('Rate Worker'),
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+      ),
+    );
+
+    return reviewAsync.maybeWhen(
+      data: (review) {
+        if (review == null) return rateButton;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionTitle('Your Review'),
+            const SizedBox(height: 12),
+            ReviewCard(review: review),
+          ],
+        );
+      },
+      // While the review stream is loading or errored, still let the client
+      // rate — the transaction rejects a duplicate if one already exists.
+      orElse: () => rateButton,
+    );
   }
 }
 

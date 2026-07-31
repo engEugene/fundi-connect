@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
-import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/review_card.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../reviews/providers/review_providers.dart';
 import '../data/profile_mock.dart';
 
 /// Tradesman Profile tab.
@@ -72,11 +72,7 @@ class TradesmanProfileScreen extends ConsumerWidget {
               ],
               Text('Reviews', style: AppTextStyles.titleMedium),
               const SizedBox(height: 12),
-              for (final review in Review.sample)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ReviewCard(review: review),
-                ),
+              const _ReceivedReviews(),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: () async {

@@ -194,7 +194,7 @@ class _BookingCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('${RouteNames.bookings}/${booking.id}'),
+        onTap: () => context.push(RouteNames.bookingDetailPath(booking.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -254,7 +254,7 @@ class _BookingCard extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () =>
-                        context.push('${RouteNames.bookings}/${booking.id}'),
+                        context.push(RouteNames.leaveReviewPath(booking.id)),
                     icon: const Icon(Icons.star_outline, size: 18),
                     label: const Text('Rate'),
                     style: OutlinedButton.styleFrom(

@@ -2,6 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -10,22 +14,88 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // A worker's ratingAvg / reviewCount are denormalised aggregates that the
+    // *reviewer* has to write, so they cannot be restricted to the worker.
+    // Instead any signed-in user may touch those two fields only, and only in a
+    // way consistent with adding exactly one review: the count must go up by
+    // exactly 1 and the average must stay in range. Everything else on the
+    // worker profile stays owner-only.
+    function isRatingAggregateUpdate() {
+      let incoming = request.resource.data;
+      let current = resource.data;
+      return incoming.diff(current).affectedKeys()
+               .hasOnly(['ratingAvg', 'reviewCount', 'updatedAt'])
+             && incoming.reviewCount == current.get('reviewCount', 0) + 1
+             && incoming.ratingAvg is number
+             && incoming.ratingAvg >= 0
+             && incoming.ratingAvg <= 5;
+    }
+
+    // A review may only be written against a booking that is finished and
+    // belongs to the person writing it. This mirrors the checks the app makes
+    // inside its Firestore transaction, so a caller hitting the REST API
+    // directly cannot skip them.
+    function canReviewBooking(bookingId) {
+      let booking = get(/databases/$(database)/documents/bookings/$(bookingId)).data;
+      return booking.clientId == request.auth.uid
+             && booking.status == 'completed'
+             && booking.get('isRated', false) == false;
+    }
+
+    function isValidReview() {
+      let review = request.resource.data;
+      return review.keys().hasAll(
+               ['bookingId', 'clientId', 'workerId', 'rating', 'comment', 'createdAt'])
+             && review.keys().hasOnly(
+               ['bookingId', 'clientId', 'workerId', 'rating', 'comment',
+                'clientName', 'clientPhotoUrl', 'createdAt'])
+             && review.rating is number
+             && review.rating >= 1
+             && review.rating <= 5
+             && review.comment is string
+             && review.comment.size() <= 500
+             && review.workerId is string
+             && review.workerId.size() > 0
+             // Forces FieldValue.serverTimestamp(): a device with a wrong or
+             // deliberately altered clock cannot backdate or future-date a
+             // review to change where it sorts in the list.
+             && review.createdAt == request.time;
+    }
+
+    // -------------------------------------------------------------------------
+    // users — profile of every authenticated account
+    // -------------------------------------------------------------------------
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create, update: if isOwner(userId);
       allow delete: if false;
     }
 
+    // -------------------------------------------------------------------------
+    // workers — public tradesman profile (doc id == auth uid)
+    // -------------------------------------------------------------------------
+
     match /workers/{userId} {
       allow read: if isAuthenticated();
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId)
+                    || (isAuthenticated() && isRatingAggregateUpdate());
       allow delete: if false;
     }
+
+    // -------------------------------------------------------------------------
+    // categories — seeded once, read-only to the app
+    // -------------------------------------------------------------------------
 
     match /categories/{categoryId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
+
+    // -------------------------------------------------------------------------
+    // bookings — visible only to the two parties on the job
+    // -------------------------------------------------------------------------
 
     match /bookings/{bookingId} {
       allow read: if isAuthenticated() &&
@@ -33,16 +103,32 @@ service cloud.firestore {
                      request.auth.uid == resource.data.workerId);
       allow create: if isAuthenticated() &&
                        request.auth.uid == request.resource.data.clientId;
+      // Either party may update the job, but neither can hand it to someone
+      // else by rewriting the participants.
       allow update: if isAuthenticated() &&
                        (request.auth.uid == resource.data.clientId ||
-                        request.auth.uid == resource.data.workerId);
+                        request.auth.uid == resource.data.workerId) &&
+                       request.resource.data.clientId == resource.data.clientId &&
+                       request.resource.data.workerId == resource.data.workerId;
       allow delete: if false;
     }
 
+    // -------------------------------------------------------------------------
+    // reviews — one per completed booking, immutable once written
+    // -------------------------------------------------------------------------
+
     match /reviews/{reviewId} {
+      // Reviews are public to signed-in users: that is the whole point of
+      // ratings — a client needs to read them before booking a stranger.
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-                       request.auth.uid == request.resource.data.clientId;
+
+      allow create: if isAuthenticated()
+                    && request.auth.uid == request.resource.data.clientId
+                    && isValidReview()
+                    && canReviewBooking(request.resource.data.bookingId);
+
+      // Immutable. A tradesman cannot edit or erase a bad rating, and a client
+      // cannot revise one after the fact — disputes are handled off-platform.
       allow update, delete: if false;
     }
   }
