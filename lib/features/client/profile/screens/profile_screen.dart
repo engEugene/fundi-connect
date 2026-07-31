@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
-import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/review_card.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../reviews/providers/review_providers.dart';
 import '../data/profile_mock.dart';
 import '../../../../core/widgets/profile_widgets.dart';
 
@@ -68,13 +68,9 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
               ],
 
-              const ProfileSectionTitle('Reviews'),
+              const ProfileSectionTitle('Reviews You Have Written'),
               const SizedBox(height: 12),
-              for (final review in Review.sample)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ReviewCard(review: review),
-                ),
+              const _MyWrittenReviews(),
               const SizedBox(height: 12),
 
               OutlinedButton.icon(
@@ -93,6 +89,49 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Live list of the reviews the signed-in client has left for tradesmen.
+class _MyWrittenReviews extends ConsumerWidget {
+  const _MyWrittenReviews();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewsAsync = ref.watch(myWrittenReviewsProvider);
+
+    return reviewsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      ),
+      error: (_, _) => Text(
+        "Couldn't load your reviews.",
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted),
+      ),
+      data: (reviews) {
+        if (reviews.isEmpty) {
+          return Text(
+            "You haven't reviewed anyone yet. Rate a tradesman after a "
+            'completed job to help other clients.',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textMuted,
+            ),
+          );
+        }
+        return Column(
+          children: [
+            for (final review in reviews)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ReviewCard(review: review),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -4,12 +4,17 @@ import '../../../../core/models/category.dart';
 import '../../../../core/models/review.dart';
 import '../../../../core/models/worker.dart';
 import '../../../../core/services/firestore_service.dart';
+import '../../../reviews/data/review_repository.dart';
 
 
 class DiscoverRepository {
-  const DiscoverRepository(this._firestore);
+  DiscoverRepository(this._firestore, {ReviewRepository? reviewRepository})
+      : _reviews = reviewRepository ?? ReviewRepository();
 
   final FirestoreService _firestore;
+
+  /// Reviews are owned by the reviews feature; Discover only reads them.
+  final ReviewRepository _reviews;
 
   
   Stream<List<Worker>> watchWorkers({String? category, String? district}) {
@@ -38,18 +43,13 @@ class DiscoverRepository {
     });
   }
 
- 
-  Stream<List<Review>> watchReviews(String workerId) {
-    return _firestore.reviews
-        .where('tradesmanId', isEqualTo: workerId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Review.fromJson(doc.id, doc.data()))
-              .toList(),
-        );
-  }
+
+  /// A tradesman's reviews, newest first.
+  ///
+  /// Delegates to [ReviewRepository] so the `workerId` field name and the
+  /// composite index it relies on are defined in exactly one place.
+  Stream<List<Review>> watchReviews(String workerId) =>
+      _reviews.watchWorkerReviews(workerId);
 
   /// Streams active categories, in display order.
   ///

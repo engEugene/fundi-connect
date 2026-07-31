@@ -30,6 +30,14 @@ class RouteNames {
   static const String bookingDetail = '$bookings/:id';
   static const String confirmBooking = '$bookings/confirm';
   static const String workerDashboard = '$bookings/dashboard';
+  static const String leaveReview = '$bookings/:id/review';
+
+  /// Builds a concrete path to the booking detail screen.
+  static String bookingDetailPath(String bookingId) => '$bookings/$bookingId';
+
+  /// Builds a concrete path to the review form for a completed booking.
+  static String leaveReviewPath(String bookingId) =>
+      '$bookings/$bookingId/review';
 
   // Profile sub-flows
   static const String editProfile = '$profile/edit';

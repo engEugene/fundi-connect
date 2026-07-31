@@ -19,6 +19,7 @@ import '../../features/client/profile/screens/edit_profile_screen.dart' as clien
 import '../../features/client/profile/screens/profile_screen.dart' as client;
 import '../../features/client/profile/screens/settings_screen.dart' as client;
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/reviews/screens/leave_review_screen.dart';
 import '../../features/tradesman/bookings/screens/bookings_screen.dart';
 import '../../features/tradesman/bookings/screens/job_request_detail_screen.dart';
 import '../../features/tradesman/dashboard/screens/worker_dashboard_screen.dart';
@@ -213,6 +214,18 @@ class AppRouter {
               builder: (context, state) => _RoleAwareBookingDetailScreen(
                 bookingId: state.pathParameters['id']!,
               ),
+              routes: [
+                // Review form for a completed booking. Rendered on the root
+                // navigator so it covers the bottom nav like the other
+                // full-screen flows.
+                GoRoute(
+                  path: 'review',
+                  parentNavigatorKey: rootNavigatorKey,
+                  builder: (context, state) => LeaveReviewScreen(
+                    bookingId: state.pathParameters['id']!,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

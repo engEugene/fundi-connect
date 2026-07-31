@@ -11,7 +11,7 @@ import '../data/discover_repository.dart';
 
 
 final discoverRepositoryProvider = Provider<DiscoverRepository>((ref) {
-  return const DiscoverRepository(FirestoreService());
+  return DiscoverRepository(const FirestoreService());
 });
 
 class DiscoverFilters {
