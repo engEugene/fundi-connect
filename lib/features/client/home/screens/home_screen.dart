@@ -164,7 +164,7 @@ class _SpecialOfferCard extends StatelessWidget {
                   SizedBox(
                     height: 40,
                     child: ElevatedButton(
-                      onPressed: () => context.push(RouteNames.confirmBooking),
+                      onPressed: () => context.go(RouteNames.discover),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: AppColors.onSecondary,

@@ -161,6 +161,40 @@ class _TradesmanJobRequestDetailScreenState
                     ),
                   ],
                 )
+              else if (booking.statusRaw == BookingLifecycle.accepted)
+                Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.tertiary,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        'Accepted',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _processing
+                            ? null
+                            : () => _respond(BookingLifecycle.completed),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Mark as Completed'),
+                      ),
+                    ),
+                  ],
+                )
               else
                 Container(
                   width: double.infinity,

@@ -13,8 +13,7 @@ import '../../../client/bookings/providers/booking_providers.dart';
 import '../../../client/profile/providers/profile_provider.dart';
 
 /// Tradesman entry point.
-///
-/// Shows incoming job requests, availability toggle, and quick stats so a
+
 
 class TradesmanHomeScreen extends ConsumerStatefulWidget {
   const TradesmanHomeScreen({super.key});
@@ -79,7 +78,10 @@ class _TradesmanHomeScreenState extends ConsumerState<TradesmanHomeScreen> {
               const SizedBox(height: 24),
               _SectionHeader(
                 title: 'Incoming Requests',
-                count: requestsAsync.value?.length ?? 0,
+                count: requestsAsync.value
+                        ?.where((b) => b.statusRaw == BookingLifecycle.pending)
+                        .length ??
+                    0,
                 onActionTap: () => context.go(RouteNames.bookings),
               ),
               const SizedBox(height: 16),

@@ -97,7 +97,19 @@ class WorkerDetailScreen extends ConsumerWidget {
       ),
       error: (_, _) => Scaffold(
         appBar: AppBar(title: const Text('Profile')),
-        body: const Center(child: Text('Error loading worker profile.')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Error loading worker profile.'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(workerDetailProvider(workerId)),
+                child: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
