@@ -10,6 +10,7 @@ import '../../../../core/widgets/category_chip.dart';
 import '../../../../core/widgets/worker_card.dart';
 import '../../discover/providers/discover_provider.dart';
 import '../providers/home_provider.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 
 
@@ -61,11 +62,16 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _GreetingHeader extends StatelessWidget {
+class _GreetingHeader extends ConsumerWidget {
   const _GreetingHeader();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider.select((s) => s.authenticatedUser));
+    final displayName = user?.displayName?.trim().isNotEmpty == true
+        ? user!.displayName!
+        : 'there';
+
     return Row(
       children: [
         Expanded(
@@ -73,14 +79,14 @@ class _GreetingHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning 👋',
+                'Hello 👋',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Amina Uwase',
+                displayName,
                 style: AppTextStyles.headlineSmall,
               ),
             ],

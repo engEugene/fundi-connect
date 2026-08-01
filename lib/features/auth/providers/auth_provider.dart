@@ -56,6 +56,7 @@ class AuthNotifier extends Notifier<AuthState> {
       (user) {
         state = state.copyWith(
           authenticatedUser: user,
+          selectedRole: user?.role ?? state.selectedRole,
           initializing: false,
         );
       },
@@ -76,6 +77,10 @@ class AuthNotifier extends Notifier<AuthState> {
         authenticatedUser: user,
         selectedRole: user.role,
         initializing: false,
+      );
+
+  void updateUser(AppUser user) => state = state.copyWith(
+        authenticatedUser: user,
       );
 
   Future<void> signOut() async {

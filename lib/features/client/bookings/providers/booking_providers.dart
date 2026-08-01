@@ -16,6 +16,14 @@ final clientBookingsProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
   return ref.watch(bookingRepositoryProvider).watchClientBookings(uid);
 });
 
+/// The signed-in tradesman's bookings, streamed live from Firestore.
+final workerBookingsProvider = StreamProvider.autoDispose<List<Booking>>((ref) {
+  final uid = ref.watch(authProvider).authenticatedUser?.uid;
+  if (uid == null) return Stream.value(const []);
+
+  return ref.watch(bookingRepositoryProvider).watchWorkerBookings(uid);
+});
+
 /// A single booking, streamed live so status changes reflect immediately.
 final bookingDetailProvider =
     StreamProvider.autoDispose.family<Booking?, String>((ref, bookingId) {

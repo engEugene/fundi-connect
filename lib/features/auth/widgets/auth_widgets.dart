@@ -1,5 +1,6 @@
 // pill shapes only for auth screens, other features use diff rounding
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
@@ -183,6 +184,76 @@ class AuthFooterPrompt extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class AuthDivider extends StatelessWidget {
+  const AuthDivider({super.key, this.label = 'or'});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppColors.inputBorder)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textMuted,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AppColors.inputBorder)),
+      ],
+    );
+  }
+}
+
+class GoogleSignInButton extends StatelessWidget {
+  const GoogleSignInButton({
+    super.key,
+    required this.onPressed,
+    this.loading = false,
+    this.enabled = true,
+  });
+
+  final VoidCallback onPressed;
+  final bool loading;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: AuthStyles.secondaryButton,
+      onPressed: (loading || !enabled) ? null : onPressed,
+      child: loading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SvgPicture.asset(
+                  'assets/images/google_logo.svg',
+                  width: 20,
+                  height: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Continue with Google',
+                  style: AppTextStyles.labelLarge,
+                ),
+              ],
+            ),
     );
   }
 }

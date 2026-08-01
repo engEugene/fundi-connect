@@ -132,11 +132,23 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
                 error: (error, _) => Center(
-                  child: Text(
-                    'Failed to load workers. Please try again.',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.error,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Failed to load workers. Please try again.',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.error,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            ref.invalidate(workersListProvider),
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Try Again'),
+                      ),
+                    ],
                   ),
                 ),
               ),

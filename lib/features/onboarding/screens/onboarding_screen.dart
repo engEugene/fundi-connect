@@ -8,7 +8,6 @@ import '../../../config/theme/app_text_styles.dart';
 import '../data/onboarding_page_data.dart';
 import '../widgets/onboarding_layout.dart';
 
-/// Owner: Onboarding team (Feature 1)
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -47,7 +46,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
-        bottom: false,
         child: PageView.builder(
           controller: _pageController,
           itemCount: _pages.length,
@@ -70,10 +68,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 /// Renders one onboarding page on a fixed 312x679 design canvas — matching
 /// the measured Figma export exactly — then scales the whole canvas
-/// uniformly to fit the device width via [FittedBox].
-///
-/// This trades perfect responsiveness for exact visual fidelity to the
-/// design, which is the goal for a marketing/onboarding screen like this.
+/// uniformly to fit the device via [FittedBox]. On tall screens the canvas
+/// is fitted by height (with slight side letterboxing) so the bottom-sheet
+/// actions ("Skip", "Already have an account? Sign In") always stay on screen.
 class _OnboardingCanvasPage extends StatelessWidget {
   const _OnboardingCanvasPage({
     required this.data,
@@ -94,7 +91,7 @@ class _OnboardingCanvasPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FittedBox(
-      fit: BoxFit.fitWidth,
+      fit: BoxFit.contain,
       alignment: Alignment.topCenter,
       child: SizedBox(
         width: OnboardingLayout.canvasWidth,
@@ -130,43 +127,49 @@ class _OnboardingCanvasPage extends StatelessWidget {
 
             ...data.badges,
 
-            // Headline
+            // Headline + subtitle flow in one column so the subtitle always
+            // sits below the headline regardless of how many lines it wraps to.
             Positioned(
               top: OnboardingLayout.headlineTop,
               left: OnboardingLayout.headlineHorizontalPadding,
               right: OnboardingLayout.headlineHorizontalPadding,
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    for (final line in data.titleLines) ...[
-                      TextSpan(
-                        text: line.text,
-                        style: AppTextStyles.headlineLarge.copyWith(
-                          color: line.accent
-                              ? AppColors.secondary
-                              : AppColors.textOnDark,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                        ),
-                      ),
-                      if (line != data.titleLines.last)
-                        const TextSpan(text: '\n'),
-                    ],
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-
-            // Subtitle
-            Positioned(
-              top: OnboardingLayout.subtitleTop,
-              left: OnboardingLayout.subtitleHorizontalPadding,
-              right: OnboardingLayout.subtitleHorizontalPadding,
-              child: Text(
-                data.subtitle,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.onboardingBody,
+              child: Column(
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        for (final line in data.titleLines) ...[
+                          TextSpan(
+                            text: line.text,
+                            style: AppTextStyles.headlineLarge.copyWith(
+                              color: line.accent
+                                  ? AppColors.secondary
+                                  : AppColors.textOnDark,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
+                          ),
+                          if (line != data.titleLines.last)
+                            const TextSpan(text: '\n'),
+                        ],
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 11),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal:
+                          OnboardingLayout.subtitleHorizontalPadding -
+                              OnboardingLayout.headlineHorizontalPadding,
+                    ),
+                    child: Text(
+                      data.subtitle,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.onboardingBody,
+                    ),
+                  ),
+                ],
               ),
             ),
 

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../auth/providers/auth_provider.dart';
-import '../data/profile_mock.dart';
 import '../../../../core/widgets/profile_widgets.dart';
-
-/// Owner: Profile team 
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -19,13 +17,36 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  static const _pushKey = 'settings_push_notifications';
+  static const _emailKey = 'settings_email_updates';
+
   bool _availableForWork = true;
   bool _pushNotifications = true;
   bool _emailUpdates = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _pushNotifications = prefs.getBool(_pushKey) ?? true;
+      _emailUpdates = prefs.getBool(_emailKey) ?? false;
+    });
+  }
+
+  Future<void> _setBool(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final user = ProfileMock.currentUser;
+    final user = ref.watch(authProvider).authenticatedUser;
     final role = ref.watch(authProvider).selectedRole;
     final isWorker = role == UserRole.worker;
 
@@ -43,9 +64,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
             _AccountCard(
-              name: user.name,
-              subtitle: ProfileMock.phone,
-              imageUrl: user.imageUrl,
+              name: user?.displayName ?? 'Client',
+              subtitle: user?.phone ?? '',
+              imageUrl: user?.photoUrl ?? '',
               onTap: () => context.push(RouteNames.editProfile),
             ),
             const SizedBox(height: 24),
@@ -62,7 +83,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsTile(
                   icon: Icons.mail_outline,
                   label: 'Email',
-                  subtitle: ProfileMock.email,
+                  subtitle: user?.email ?? '',
                   onTap: () {},
                 ),
                 SettingsTile(
@@ -95,8 +116,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   label: 'Push Notifications',
                   trailing: Switch(
                     value: _pushNotifications,
-                    onChanged: (value) =>
-                        setState(() => _pushNotifications = value),
+                    onChanged: (value) {
+                      setState(() => _pushNotifications = value);
+                      _setBool(_pushKey, value);
+                    },
                   ),
                 ),
                 SettingsTile(
@@ -104,7 +127,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   label: 'Email Updates',
                   trailing: Switch(
                     value: _emailUpdates,
-                    onChanged: (value) => setState(() => _emailUpdates = value),
+                    onChanged: (value) {
+                      setState(() => _emailUpdates = value);
+                      _setBool(_emailKey, value);
+                    },
                   ),
                 ),
                 SettingsTile(

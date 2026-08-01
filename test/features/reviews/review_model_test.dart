@@ -28,7 +28,7 @@ void main() {
       expect(review.comment, 'Very professional and quick.');
       expect(review.authorName, 'Amina Uwase');
       expect(review.authorImageUrl, 'https://example.com/amina.jpg');
-      expect(review.createdAt, createdAt);
+      expect(review.createdAt, createdAt.toLocal());
     });
 
     test('survives a document written before optional fields existed', () {

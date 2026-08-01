@@ -43,7 +43,6 @@ class DiscoverRepository {
     });
   }
 
-
   /// A tradesman's reviews, newest first.
   ///
   /// Delegates to [ReviewRepository] so the `workerId` field name and the
@@ -52,9 +51,6 @@ class DiscoverRepository {
       _reviews.watchWorkerReviews(workerId);
 
   /// Streams active categories, in display order.
-  ///
-  /// NOTE: same as above — `isActive` equality + `orderBy displayOrder`
-  /// needs a composite index. See the note at the bottom of this file.
   Stream<List<Category>> watchCategories() {
     return _firestore.categories
         .where('isActive', isEqualTo: true)

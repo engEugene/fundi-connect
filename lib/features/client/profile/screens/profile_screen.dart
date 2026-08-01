@@ -5,22 +5,23 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
-import '../../../../core/models/worker.dart';
-import '../../../../core/utils/formatters.dart';
+import '../../../../core/models/app_user.dart';
+import '../../../../core/widgets/profile_widgets.dart';
 import '../../../../core/widgets/review_card.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../reviews/providers/review_providers.dart';
-import '../data/profile_mock.dart';
-import '../../../../core/widgets/profile_widgets.dart';
 
-/// Owner: Profile team
-
+/// Client profile tab.
+///
+/// Shows the signed-in client's details (name, email, phone) and a summary of
+/// their account activity.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ProfileMock.currentUser;
+    final authState = ref.watch(authProvider);
+    final user = authState.authenticatedUser;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -35,59 +36,45 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ProfileHeader(user: user),
-              const SizedBox(height: 20),
-              _StatsRow(user: user),
-              const SizedBox(height: 20),
-              _ActionRow(
-                onEdit: () => context.push(RouteNames.editProfile),
-                onSettings: () => context.push(RouteNames.settings),
-              ),
-              const SizedBox(height: 24),
+        child: user == null
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ProfileHeader(user: user),
+                    const SizedBox(height: 20),
+                    _ContactCard(user: user),
+                    const SizedBox(height: 20),
+                    _ActionRow(
+                      onEdit: () => context.push(RouteNames.editProfile),
+                      onSettings: () => context.push(RouteNames.settings),
+                    ),
+                    const SizedBox(height: 24),
 
-              const ProfileSectionTitle('About'),
-              const SizedBox(height: 8),
-              Text(
-                user.about ??
-                    '${user.role} with ${user.yearsExp ?? 0}+ years experience.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+                    const ProfileSectionTitle('Reviews You Have Written'),
+                    const SizedBox(height: 12),
+                    const _MyWrittenReviews(),
+                    const SizedBox(height: 12),
+
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await ref.read(authProvider.notifier).signOut();
+                        if (context.mounted) {
+                          context.go(RouteNames.onboarding);
+                        }
+                      },
+                      icon: const Icon(Icons.logout, size: 20),
+                      label: const Text('Log Out'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-
-              if (user.pastWorkUrls.isNotEmpty) ...[
-                const ProfileSectionTitle('Past Work'),
-                const SizedBox(height: 12),
-                _PastWorkRow(imageUrls: user.pastWorkUrls),
-                const SizedBox(height: 24),
-              ],
-
-              const ProfileSectionTitle('Reviews You Have Written'),
-              const SizedBox(height: 12),
-              const _MyWrittenReviews(),
-              const SizedBox(height: 12),
-
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await ref.read(authProvider.notifier).signOut();
-                  if (context.mounted) context.go(RouteNames.onboarding);
-                },
-                icon: const Icon(Icons.logout, size: 20),
-                label: const Text('Log Out'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -136,14 +123,19 @@ class _MyWrittenReviews extends ConsumerWidget {
   }
 }
 
-/// Navy card holding avatar, name, trade chips and headline figures.
+/// Navy card holding avatar, name and account summary.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({required this.user});
 
-  final Worker user;
+  final AppUser user;
 
   @override
   Widget build(BuildContext context) {
+    final name = user.displayName ?? 'Client';
+    final initials = name.isNotEmpty
+        ? name.split(' ').take(2).map((w) => w[0]).join().toUpperCase()
+        : 'C';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -152,75 +144,46 @@ class _ProfileHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Avatar(imageUrl: user.imageUrl, isVerified: user.isVerified),
+          ClipOval(
+            child: Container(
+              width: 80,
+              height: 80,
+              color: AppColors.primaryLight,
+              alignment: Alignment.center,
+              child: Text(
+                initials,
+                style: AppTextStyles.headlineMedium.copyWith(
+                  color: AppColors.onPrimary,
+                ),
+              ),
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user.name,
+                  name,
                   style: AppTextStyles.titleLarge.copyWith(
                     color: AppColors.onPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    _Chip(
-                      label: user.role,
-                      background: AppColors.secondary,
-                      foreground: AppColors.onSecondary,
-                    ),
-                    _Chip(
-                      label: user.isOpen ? 'Available' : 'Unavailable',
-                      background: user.isOpen
-                          ? AppColors.success
-                          : AppColors.error,
-                      foreground: AppColors.onPrimary,
-                    ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  'Client account',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.onPrimary.withValues(alpha: 0.8),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: AppColors.secondary, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${user.rating}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.location_on,
-                      size: 14,
-                      color: AppColors.onPrimary.withValues(alpha: 0.7),
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        ProfileMock.district,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.onPrimary.withValues(alpha: 0.8),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${Formatters.formatNumber(user.hourlyRate)} Rwf/hr',
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.secondary,
-                  ),
+                _Chip(
+                  label: 'Verified',
+                  background: AppColors.success,
+                  foreground: AppColors.onPrimary,
+                  icon: Icons.verified,
                 ),
               ],
             ),
@@ -231,59 +194,18 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.imageUrl, required this.isVerified});
-
-  final String imageUrl;
-  final bool isVerified;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        ClipOval(
-          child: Image.network(
-            imageUrl,
-            width: 80,
-            height: 80,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              width: 80,
-              height: 80,
-              color: AppColors.primaryLight,
-              child: const Icon(
-                Icons.person,
-                color: AppColors.onPrimary,
-                size: 40,
-              ),
-            ),
-          ),
-        ),
-        if (isVerified)
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.verified, color: AppColors.success, size: 22),
-          ),
-      ],
-    );
-  }
-}
-
 class _Chip extends StatelessWidget {
   const _Chip({
     required this.label,
     required this.background,
     required this.foreground,
+    this.icon,
   });
 
   final String label;
   final Color background;
   final Color foreground;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -293,66 +215,97 @@ class _Chip extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(color: foreground),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: foreground, size: 14),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: foreground),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.user});
+class _ContactCard extends StatelessWidget {
+  const _ContactCard({required this.user});
 
-  final Worker user;
+  final AppUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.tertiary,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          _ContactRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: user.email ?? 'Not set',
+          ),
+          const Divider(height: 24),
+          _ContactRow(
+            icon: Icons.phone_outlined,
+            label: 'Phone',
+            value: user.phone ?? 'Not set',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _StatCard(value: '${user.jobsDone ?? 0}', label: 'Jobs Done'),
+        Icon(icon, color: AppColors.primary, size: 20),
         const SizedBox(width: 12),
-        _StatCard(value: '${user.reviewCount}', label: 'Reviews'),
-        const SizedBox(width: 12),
-        _StatCard(value: '${user.yearsExp ?? 0}', label: 'Yrs Exp.'),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: AppTextStyles.bodyMedium,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.tertiary,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: AppTextStyles.headlineSmall.copyWith(
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(label, style: AppTextStyles.bodySmall),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Edit / Settings shortcuts sitting under the stats.
+/// Edit / Settings shortcuts sitting under the contact card.
 class _ActionRow extends StatelessWidget {
   const _ActionRow({required this.onEdit, required this.onSettings});
 
@@ -384,24 +337,6 @@ class _ActionRow extends StatelessWidget {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _PastWorkRow extends StatelessWidget {
-  const _PastWorkRow({required this.imageUrls});
-
-  final List<String> imageUrls;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < imageUrls.length; i++) ...[
-          if (i > 0) const SizedBox(width: 12),
-          Expanded(child: PortfolioTile(imageUrl: imageUrls[i])),
-        ],
       ],
     );
   }

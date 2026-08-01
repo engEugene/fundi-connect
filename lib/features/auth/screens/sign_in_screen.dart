@@ -45,6 +45,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+
+    final user = await ref
+        .read(signInFormProvider.notifier)
+        .signInWithGoogle();
+
+    if (!mounted || user == null) return;
+    if (user.emailVerified) {
+      context.go(RouteNames.home);
+    } else {
+      context.push(RouteNames.verifyEmail);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final form = ref.watch(signInFormProvider);
@@ -107,6 +122,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   label: 'Sign In',
                   loading: form.submitting,
                   onPressed: _submit,
+                ),
+                const SizedBox(height: 24),
+                const AuthDivider(),
+                const SizedBox(height: 24),
+                GoogleSignInButton(
+                  loading: form.googleSubmitting,
+                  enabled: !form.submitting,
+                  onPressed: _signInWithGoogle,
                 ),
                 const SizedBox(height: 24),
                 AuthFooterPrompt(

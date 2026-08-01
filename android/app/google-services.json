@@ -12,7 +12,28 @@
           "package_name": "com.example.fundi_connect"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "142209637999-6evom584pd14r98pk15hj5svt5usttlq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fundi_connect",
+            "certificate_hash": "e9e519ae0811cffc631f17a2e28f9274cc77d73b"
+          }
+        },
+        {
+          "client_id": "142209637999-6fbi34v3e14gcaiveab9e0nnugsuaq1e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fundi_connect",
+            "certificate_hash": "d5b8c9b03e49fff11f247046e0d84bd0eb2985b7"
+          }
+        },
+        {
+          "client_id": "142209637999-9s18nqtr0p0u60cvrp2od5g048kbuptu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDoPabV-XOcmrazeg4fWzLPoHvyTLmbuHM"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "142209637999-9s18nqtr0p0u60cvrp2od5g048kbuptu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "142209637999-pte42c3s8p4dc5hffibcrpovsd8eb360.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fundiConnect"
+              }
+            }
+          ]
         }
       }
     }

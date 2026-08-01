@@ -36,6 +36,28 @@ class BookingRepository {
             .toList());
   }
 
+  /// Live stream of the bookings assigned to a tradesman, most recent first.
+  Stream<List<Booking>> watchWorkerBookings(String workerId) {
+    return _firestore.bookings
+        .where('workerId', isEqualTo: workerId)
+        .orderBy('scheduledAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Booking.fromJson(doc.id, doc.data()))
+            .toList());
+  }
+
+  /// Updates a booking's status (accept / decline / complete).
+  Future<void> updateBookingStatus(
+    String bookingId, {
+    required String status,
+  }) {
+    return _firestore.bookingDoc(bookingId).update({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Live stream of a single booking, or null if it no longer exists.
   Stream<Booking?> watchBooking(String bookingId) {
     return _firestore.bookingDoc(bookingId).snapshots().map((doc) {

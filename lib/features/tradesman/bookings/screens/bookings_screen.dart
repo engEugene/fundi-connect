@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
@@ -6,19 +7,21 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/booking.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../client/bookings/providers/booking_providers.dart';
 
 /// Tradesman Bookings tab.
 ///
 /// Lists job requests grouped by status so the tradesman can accept, manage
 /// and complete their jobs.
-class TradesmanBookingsScreen extends StatefulWidget {
+class TradesmanBookingsScreen extends ConsumerStatefulWidget {
   const TradesmanBookingsScreen({super.key});
 
   @override
-  State<TradesmanBookingsScreen> createState() => _TradesmanBookingsScreenState();
+  ConsumerState<TradesmanBookingsScreen> createState() =>
+      _TradesmanBookingsScreenState();
 }
 
-class _TradesmanBookingsScreenState extends State<TradesmanBookingsScreen>
+class _TradesmanBookingsScreenState extends ConsumerState<TradesmanBookingsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -41,8 +44,33 @@ class _TradesmanBookingsScreenState extends State<TradesmanBookingsScreen>
     super.dispose();
   }
 
+  List<Booking> _forTab(List<Booking> all, int index) {
+    switch (index) {
+      case 0:
+        return all.where((b) => b.statusRaw == BookingLifecycle.pending).toList();
+      case 1:
+        return all
+            .where((b) =>
+                b.statusRaw == BookingLifecycle.accepted ||
+                b.statusRaw == BookingLifecycle.inProgress)
+            .toList();
+      case 2:
+        return all
+            .where((b) => b.statusRaw == BookingLifecycle.completed)
+            .toList();
+      default:
+        return all
+            .where((b) =>
+                b.statusRaw == BookingLifecycle.cancelled ||
+                b.statusRaw == BookingLifecycle.rejected)
+            .toList();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bookings = ref.watch(workerBookingsProvider).value ?? const <Booking>[];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -69,27 +97,11 @@ class _TradesmanBookingsScreenState extends State<TradesmanBookingsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _BookingList(
-            bookings: Booking.all
-                .where((b) => b.status == BookingStatus.upcoming)
-                .toList(),
-            showActions: true,
-          ),
-          _BookingList(
-            bookings: Booking.all
-                .where((b) => b.status == BookingStatus.upcoming)
-                .toList(),
-          ),
-          _BookingList(
-            bookings: Booking.all
-                .where((b) => b.status == BookingStatus.completed)
-                .toList(),
-          ),
-          _BookingList(
-            bookings: Booking.all
-                .where((b) => b.status == BookingStatus.cancelled)
-                .toList(),
-          ),
+          for (var i = 0; i < _tabs.length; i++)
+            _BookingList(
+              bookings: _forTab(bookings, i),
+              showActions: i == 0,
+            ),
         ],
       ),
     );
@@ -130,7 +142,7 @@ class _BookingList extends StatelessWidget {
   }
 }
 
-class _JobCard extends StatelessWidget {
+class _JobCard extends ConsumerWidget {
   const _JobCard({
     required this.booking,
     this.showActions = false,
@@ -161,18 +173,39 @@ class _JobCard extends StatelessWidget {
   }
 
   String get _statusLabel {
-    switch (booking.status) {
-      case BookingStatus.upcoming:
+    switch (booking.statusRaw) {
+      case BookingLifecycle.pending:
         return 'Pending';
-      case BookingStatus.completed:
+      case BookingLifecycle.accepted:
+        return 'Accepted';
+      case BookingLifecycle.inProgress:
+        return 'In Progress';
+      case BookingLifecycle.completed:
         return 'Completed';
-      case BookingStatus.cancelled:
+      case BookingLifecycle.rejected:
+        return 'Declined';
+      default:
         return 'Cancelled';
     }
   }
 
+  Future<void> _respond(WidgetRef ref, String status) async {
+    final messenger = ScaffoldMessenger.of(ref.context);
+    try {
+      await ref
+          .read(bookingRepositoryProvider)
+          .updateBookingStatus(booking.id, status: status);
+    } catch (_) {
+      if (ref.context.mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Something went wrong. Try again.')),
+        );
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -274,7 +307,8 @@ class _JobCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {},
+                        onPressed: () =>
+                            _respond(ref, BookingLifecycle.rejected),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
                           side: const BorderSide(color: AppColors.error),
@@ -286,7 +320,8 @@ class _JobCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () =>
+                            _respond(ref, BookingLifecycle.accepted),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size.fromHeight(40),
                         ),

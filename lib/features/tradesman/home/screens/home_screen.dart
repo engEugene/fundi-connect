@@ -1,31 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/routes/route_names.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/booking.dart';
+import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../client/bookings/providers/booking_providers.dart';
+import '../../../client/profile/providers/profile_provider.dart';
 
 /// Tradesman entry point.
 ///
 /// Shows incoming job requests, availability toggle, and quick stats so a
 
-class TradesmanHomeScreen extends StatefulWidget {
+class TradesmanHomeScreen extends ConsumerStatefulWidget {
   const TradesmanHomeScreen({super.key});
 
   @override
-  State<TradesmanHomeScreen> createState() => _TradesmanHomeScreenState();
+  ConsumerState<TradesmanHomeScreen> createState() => _TradesmanHomeScreenState();
 }
 
-class _TradesmanHomeScreenState extends State<TradesmanHomeScreen> {
-  bool _isAvailable = true;
+class _TradesmanHomeScreenState extends ConsumerState<TradesmanHomeScreen> {
+  bool _savingAvailability = false;
+
+  Future<void> _toggleAvailability(bool value) async {
+    final uid = ref.read(authProvider).authenticatedUser?.uid;
+    if (uid == null || _savingAvailability) return;
+    setState(() => _savingAvailability = true);
+    try {
+      await ref
+          .read(workerProfileRepositoryProvider)
+          .updateAvailability(uid: uid, isOpen: value);
+      ref.invalidate(workerProfileProvider);
+    } finally {
+      if (mounted) setState(() => _savingAvailability = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final requests = Booking.all
-        .where((b) => b.status == BookingStatus.upcoming)
-        .toList();
+    final requestsAsync = ref.watch(workerBookingsProvider);
+    final profileAsync = ref.watch(workerProfileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -38,32 +56,62 @@ class _TradesmanHomeScreenState extends State<TradesmanHomeScreen> {
               const SizedBox(height: 16),
               const _GreetingHeader(),
               const SizedBox(height: 24),
-              _AvailabilityCard(
-                isAvailable: _isAvailable,
-                onToggle: (value) => setState(() => _isAvailable = value),
+              profileAsync.when(
+                loading: () => const _AvailabilityCard(
+                  isAvailable: false,
+                  onToggle: null,
+                ),
+                error: (_, _) => const _AvailabilityCard(
+                  isAvailable: false,
+                  onToggle: null,
+                ),
+                data: (profile) => _AvailabilityCard(
+                  isAvailable: profile?.isOpen ?? false,
+                  onToggle: _savingAvailability ? null : _toggleAvailability,
+                ),
               ),
               const SizedBox(height: 24),
-              const _QuickStatsRow(),
+              _QuickStatsRow(
+                profile: profileAsync.valueOrNull,
+                bookings: requestsAsync.value ?? const [],
+                onTap: () => context.push(RouteNames.workerDashboard),
+              ),
               const SizedBox(height: 24),
               _SectionHeader(
                 title: 'Incoming Requests',
-                count: requests.length,
+                count: requestsAsync.value?.length ?? 0,
                 onActionTap: () => context.go(RouteNames.bookings),
               ),
               const SizedBox(height: 16),
-              if (requests.isEmpty)
-                const _EmptyRequestsState()
-              else
-                for (final booking in requests)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _RequestCard(
-                      booking: booking,
-                      onTap: () => context.push(
-                        '${RouteNames.bookings}/${booking.id}',
-                      ),
-                    ),
+              requestsAsync.when(
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   ),
+                ),
+                error: (_, _) => const _EmptyRequestsState(),
+                data: (requests) {
+                  final pending = requests
+                      .where((b) => b.statusRaw == BookingLifecycle.pending)
+                      .toList();
+                  if (pending.isEmpty) return const _EmptyRequestsState();
+                  return Column(
+                    children: [
+                      for (final booking in pending)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _RequestCard(
+                            booking: booking,
+                            onTap: () => context.push(
+                              '${RouteNames.bookings}/${booking.id}',
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -73,11 +121,16 @@ class _TradesmanHomeScreenState extends State<TradesmanHomeScreen> {
   }
 }
 
-class _GreetingHeader extends StatelessWidget {
+class _GreetingHeader extends ConsumerWidget {
   const _GreetingHeader();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider.select((s) => s.authenticatedUser));
+    final displayName = user?.displayName?.trim().isNotEmpty == true
+        ? user!.displayName!
+        : 'there';
+
     return Row(
       children: [
         Expanded(
@@ -85,14 +138,14 @@ class _GreetingHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning 👋',
+                'Hello 👋',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Jean Pierre',
+                displayName,
                 style: AppTextStyles.headlineSmall,
               ),
               const SizedBox(height: 2),
@@ -125,11 +178,11 @@ class _GreetingHeader extends StatelessWidget {
 class _AvailabilityCard extends StatelessWidget {
   const _AvailabilityCard({
     required this.isAvailable,
-    required this.onToggle,
+    this.onToggle,
   });
 
   final bool isAvailable;
-  final ValueChanged<bool> onToggle;
+  final ValueChanged<bool>? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -199,30 +252,47 @@ class _AvailabilityCard extends StatelessWidget {
 }
 
 class _QuickStatsRow extends StatelessWidget {
-  const _QuickStatsRow();
+  const _QuickStatsRow({
+    required this.profile,
+    required this.bookings,
+    this.onTap,
+  });
+
+  final Worker? profile;
+  final List<Booking> bookings;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _StatCard(
-          label: 'Today',
-          value: '${Formatters.formatNumber(18000)} Rwf',
-          icon: Icons.today_outlined,
-        ),
-        const SizedBox(width: 12),
-        _StatCard(
-          label: 'Rating',
-          value: '4.9',
-          icon: Icons.star_outline,
-        ),
-        const SizedBox(width: 12),
-        _StatCard(
-          label: 'Jobs',
-          value: '127',
-          icon: Icons.work_outline,
-        ),
-      ],
+    final completed = bookings
+        .where((b) => b.statusRaw == BookingLifecycle.completed)
+        .toList();
+    final earnings =
+        completed.fold<double>(0, (sum, b) => sum + b.serviceFee);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        children: [
+          _StatCard(
+            label: 'Earnings',
+            value: '${Formatters.formatNumber(earnings)} Rwf',
+            icon: Icons.today_outlined,
+          ),
+          const SizedBox(width: 12),
+          _StatCard(
+            label: 'Rating',
+            value: (profile?.rating ?? 0).toStringAsFixed(1),
+            icon: Icons.star_outline,
+          ),
+          const SizedBox(width: 12),
+          _StatCard(
+            label: 'Jobs',
+            value: '${completed.length}',
+            icon: Icons.work_outline,
+          ),
+        ],
+      ),
     );
   }
 }

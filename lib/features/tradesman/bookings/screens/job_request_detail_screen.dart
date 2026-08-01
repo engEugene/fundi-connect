@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/theme/app_text_styles.dart';
 import '../../../../core/models/booking.dart';
+import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../client/bookings/providers/booking_providers.dart';
 
 /// Full-screen view of a job request for the tradesman.
 ///
 /// Shows the client details, job description, location and price, and lets
 /// the tradesman accept or decline the request.
-class TradesmanJobRequestDetailScreen extends StatelessWidget {
+class TradesmanJobRequestDetailScreen extends ConsumerStatefulWidget {
   const TradesmanJobRequestDetailScreen({
     super.key,
     required this.bookingId,
@@ -19,11 +22,60 @@ class TradesmanJobRequestDetailScreen extends StatelessWidget {
   final String bookingId;
 
   @override
+  ConsumerState<TradesmanJobRequestDetailScreen> createState() =>
+      _TradesmanJobRequestDetailScreenState();
+}
+
+class _TradesmanJobRequestDetailScreenState
+    extends ConsumerState<TradesmanJobRequestDetailScreen> {
+  bool _processing = false;
+
+  Future<void> _respond(String status) async {
+    if (_processing) return;
+    setState(() => _processing = true);
+    try {
+      await ref
+          .read(bookingRepositoryProvider)
+          .updateBookingStatus(widget.bookingId, status: status);
+      if (mounted) context.pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Something went wrong. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final booking = Booking.all.firstWhere(
-      (b) => b.id == bookingId,
-      orElse: () => Booking.all.first,
+    final requests = ref.watch(workerBookingsProvider).value ?? const <Booking>[];
+    final booking = requests.firstWhere(
+      (b) => b.id == widget.bookingId,
+      orElse: () => Booking(
+        id: widget.bookingId,
+        worker: const Worker(
+          id: '',
+          name: '',
+          role: '',
+          category: '',
+          imageUrl: '',
+          rating: 0,
+          reviewCount: 0,
+          distanceKm: 0,
+          hourlyRate: 0,
+        ),
+        serviceType: '',
+        date: DateTime.now(),
+        time: '',
+        location: '',
+        status: BookingStatus.upcoming,
+      ),
     );
+
+    final isPending = booking.statusRaw == BookingLifecycle.pending;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,31 +131,58 @@ class TradesmanJobRequestDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {},
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                        minimumSize: const Size.fromHeight(48),
+              if (isPending)
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _processing
+                            ? null
+                            : () => _respond(BookingLifecycle.rejected),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: const BorderSide(color: AppColors.error),
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        child: const Text('Decline'),
                       ),
-                      child: const Text('Decline'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _processing
+                            ? null
+                            : () => _respond(BookingLifecycle.accepted),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        child: const Text('Accept Job'),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.tertiary,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    booking.statusRaw == BookingLifecycle.accepted
+                        ? 'Accepted'
+                        : booking.statusRaw == BookingLifecycle.rejected
+                            ? 'Declined'
+                            : 'Request ${booking.statusRaw}',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: booking.statusRaw == BookingLifecycle.accepted
+                          ? AppColors.success
+                          : AppColors.textMuted,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      child: const Text('Accept Job'),
-                    ),
-                  ),
-                ],
-              ),
+                ),
             ],
           ),
         ),

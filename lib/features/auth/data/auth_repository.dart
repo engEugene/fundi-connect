@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/models/app_user.dart';
 import '../../../core/services/firestore_service.dart';
@@ -86,6 +89,39 @@ class AuthRepository {
     }
   }
 
+  Future<AppUser> signInWithGoogle() async {
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        throw const AuthException('Google sign-in was cancelled.');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw const AuthException('Google sign-in failed. Please try again.');
+      }
+
+      return _getOrCreateUserDocument(firebaseUser);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_mapFirebaseAuthError(e));
+    } on PlatformException catch (e) {
+      debugPrint('Google sign-in platform error: code=${e.code} '
+          'message=${e.message} details=${e.details}');
+      throw AuthException(_mapPlatformError(e));
+    } on AuthException {
+      rethrow;
+    } catch (e, st) {
+      debugPrint('Google sign-in error: $e\n$st');
+      throw const AuthException('Google sign-in failed. Please try again.');
+    }
+  }
+
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
@@ -136,8 +172,7 @@ class AuthRepository {
       }
       if (updated.role == UserRole.worker) {
         await _createInitialWorkerDocument(updated);
-      }
-      return updated;
+      }      return updated;
     }
 
     // If the users document is missing, infer the role from an existing
@@ -148,11 +183,24 @@ class AuthRepository {
       firebaseUser,
       role: fallbackRole,
     );
-    await _createUserDocument(fallback);
-    if (fallbackRole == UserRole.worker) {
-      await _createInitialWorkerDocument(fallback);
+
+    // Create the fallback document inside a transaction that re-checks
+    // existence, so a concurrently created document (e.g. a sign-up that
+    // is still writing its worker role) is never overwritten with the
+    // fallback's inferred role.
+    final created = await _firestore.runTransaction((txn) async {
+      final ref = _firestore.userDoc(firebaseUser.uid);
+      final existing = await txn.get(ref);
+      if (existing.exists) {
+        return AppUser.fromJson(existing.data()!);
+      }
+      txn.set(ref, fallback.toJson());
+      return fallback;
+    });
+    if (created.role == UserRole.worker) {
+      await _createInitialWorkerDocument(created);
     }
-    return fallback;
+    return created;
   }
 
   Future<AppUser?> _getUserDocument(String uid) async {
@@ -174,9 +222,19 @@ class AuthRepository {
     await _firestore.userDoc(user.uid).set(doc.toJson(), SetOptions(merge: true));
   }
 
+  /// Persists editable profile fields (name, phone) to the `users` doc.
+  Future<void> updateProfile(AppUser user) async {
+    await _firestore.userDoc(user.uid).set({
+      'displayName': user.displayName,
+      'phone': user.phone,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   /// Creates a minimal `workers/{uid}` document for a newly registered tradesman.
   /// The worker fills in the rest from the Edit Profile screen.
   Future<void> _createInitialWorkerDocument(AppUser user) async {
+    if (await _workerDocExists(user.uid)) return;
     final now = DateTime.now();
     final data = {
       'uid': user.uid,
@@ -238,7 +296,22 @@ class AuthRepository {
       'weak-password' => 'Password is too weak. Use at least 8 characters.',
       'too-many-requests' =>
         'Too many attempts. Please wait a moment and try again.',
+      'account-exists-with-different-credential' =>
+        'An account already exists with this email. '
+            'Sign in with your email and password instead.',
+      'operation-not-allowed' =>
+        'Google sign-in is not available yet. Please try again later.',
       _ => e.message ?? 'Something went wrong. Please try again.',
+    };
+  }
+
+  String _mapPlatformError(PlatformException e) {
+    return switch (e.code) {
+      'sign_in_canceled' => 'Google sign-in was cancelled.',
+      'sign_in_failed' || 'sign_in_required' =>
+        'Google sign-in failed. Please try again.',
+      'network_error' => 'Network error. Check your connection and try again.',
+      _ => 'Google sign-in failed. Please try again.',
     };
   }
 }

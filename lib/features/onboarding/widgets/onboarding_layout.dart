@@ -28,10 +28,10 @@ class OnboardingLayout {
   static const double extraBadgeTop = 294;
   static const double extraBadgeRight = 21;
 
-  // Headline / subtitle
-  static const double headlineTop = 352;
+  // Headline / subtitle (headline + subtitle are laid out in a single column
+  // starting at headlineTop so multi-line headlines never overlap the subtitle)
+  static const double headlineTop = 330;
   static const double headlineHorizontalPadding = 24;
-  static const double subtitleTop = 430;
   static const double subtitleHorizontalPadding = 32;
 
   // Bottom sheet

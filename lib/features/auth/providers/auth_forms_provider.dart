@@ -9,22 +9,26 @@ class SignInFormState {
   const SignInFormState({
     this.obscurePassword = true,
     this.submitting = false,
+    this.googleSubmitting = false,
     this.error,
   });
 
   final bool obscurePassword;
   final bool submitting;
+  final bool googleSubmitting;
   final String? error;
 
-  bool get busy => submitting;
+  bool get busy => submitting || googleSubmitting;
 
   SignInFormState copyWith({
     bool? obscurePassword,
     bool? submitting,
+    bool? googleSubmitting,
     String? error,
   }) => SignInFormState(
     obscurePassword: obscurePassword ?? this.obscurePassword,
     submitting: submitting ?? this.submitting,
+    googleSubmitting: googleSubmitting ?? this.googleSubmitting,
     error: error,
   );
 }
@@ -37,8 +41,15 @@ final signInFormProvider =
 class SignInFormNotifier extends AutoDisposeNotifier<SignInFormState> {
   AuthRepository get _repository => ref.read(authRepositoryProvider);
 
+  bool _disposed = false;
+
+  bool get _isActive => !_disposed;
+
   @override
-  SignInFormState build() => const SignInFormState();
+  SignInFormState build() {
+    ref.onDispose(() => _disposed = true);
+    return const SignInFormState();
+  }
 
   void togglePasswordVisibility() =>
       state = state.copyWith(obscurePassword: !state.obscurePassword);
@@ -49,13 +60,16 @@ class SignInFormNotifier extends AutoDisposeNotifier<SignInFormState> {
 
     try {
       final user = await _repository.signInWithEmail(email, password);
+      if (!_isActive) return null;
       ref.read(authProvider.notifier).signIn(user);
       state = state.copyWith(submitting: false);
       return user;
     } on AuthException catch (e) {
+      if (!_isActive) return null;
       state = state.copyWith(submitting: false, error: e.message);
       return null;
     } catch (_) {
+      if (!_isActive) return null;
       state = state.copyWith(
         submitting: false,
         error: 'Something went wrong. Please try again.',
@@ -64,6 +78,29 @@ class SignInFormNotifier extends AutoDisposeNotifier<SignInFormState> {
     }
   }
 
+  Future<AppUser?> signInWithGoogle() async {
+    if (state.busy) return null;
+    state = state.copyWith(googleSubmitting: true, error: null);
+
+    try {
+      final user = await _repository.signInWithGoogle();
+      if (!_isActive) return null;
+      ref.read(authProvider.notifier).signIn(user);
+      state = state.copyWith(googleSubmitting: false);
+      return user;
+    } on AuthException catch (e) {
+      if (!_isActive) return null;
+      state = state.copyWith(googleSubmitting: false, error: e.message);
+      return null;
+    } catch (_) {
+      if (!_isActive) return null;
+      state = state.copyWith(
+        googleSubmitting: false,
+        error: 'Something went wrong. Please try again.',
+      );
+      return null;
+    }
+  }
 }
 
 enum SignUpOutcome { success, failed }
@@ -72,20 +109,26 @@ class SignUpFormState {
   const SignUpFormState({
     this.obscurePassword = true,
     this.submitting = false,
+    this.googleSubmitting = false,
     this.error,
   });
 
   final bool obscurePassword;
   final bool submitting;
+  final bool googleSubmitting;
   final String? error;
+
+  bool get busy => submitting || googleSubmitting;
 
   SignUpFormState copyWith({
     bool? obscurePassword,
     bool? submitting,
+    bool? googleSubmitting,
     String? error,
   }) => SignUpFormState(
     obscurePassword: obscurePassword ?? this.obscurePassword,
     submitting: submitting ?? this.submitting,
+    googleSubmitting: googleSubmitting ?? this.googleSubmitting,
     error: error,
   );
 }
@@ -98,8 +141,15 @@ final signUpFormProvider =
 class SignUpFormNotifier extends AutoDisposeNotifier<SignUpFormState> {
   AuthRepository get _repository => ref.read(authRepositoryProvider);
 
+  bool _disposed = false;
+
+  bool get _isActive => !_disposed;
+
   @override
-  SignUpFormState build() => const SignUpFormState();
+  SignUpFormState build() {
+    ref.onDispose(() => _disposed = true);
+    return const SignUpFormState();
+  }
 
   void togglePasswordVisibility() =>
       state = state.copyWith(obscurePassword: !state.obscurePassword);
@@ -125,19 +175,46 @@ class SignUpFormNotifier extends AutoDisposeNotifier<SignUpFormState> {
         role: role,
         phone: phone,
       );
+      if (!_isActive) return SignUpOutcome.failed;
       ref.read(authProvider.notifier).signIn(user);
 
       state = state.copyWith(submitting: false);
       return SignUpOutcome.success;
     } on AuthException catch (e) {
+      if (!_isActive) return SignUpOutcome.failed;
       state = state.copyWith(submitting: false, error: e.message);
       return SignUpOutcome.failed;
     } catch (_) {
+      if (!_isActive) return SignUpOutcome.failed;
       state = state.copyWith(
         submitting: false,
         error: 'Something went wrong. Please try again.',
       );
       return SignUpOutcome.failed;
+    }
+  }
+
+  Future<AppUser?> signInWithGoogle() async {
+    if (state.busy) return null;
+    state = state.copyWith(googleSubmitting: true, error: null);
+
+    try {
+      final user = await _repository.signInWithGoogle();
+      if (!_isActive) return null;
+      ref.read(authProvider.notifier).signIn(user);
+      state = state.copyWith(googleSubmitting: false);
+      return user;
+    } on AuthException catch (e) {
+      if (!_isActive) return null;
+      state = state.copyWith(googleSubmitting: false, error: e.message);
+      return null;
+    } catch (_) {
+      if (!_isActive) return null;
+      state = state.copyWith(
+        googleSubmitting: false,
+        error: 'Something went wrong. Please try again.',
+      );
+      return null;
     }
   }
 }
@@ -159,8 +236,15 @@ final forgotPasswordProvider =
 class ForgotPasswordNotifier extends AutoDisposeNotifier<ForgotPasswordState> {
   AuthRepository get _repository => ref.read(authRepositoryProvider);
 
+  bool _disposed = false;
+
+  bool get _isActive => !_disposed;
+
   @override
-  ForgotPasswordState build() => const ForgotPasswordState();
+  ForgotPasswordState build() {
+    ref.onDispose(() => _disposed = true);
+    return const ForgotPasswordState();
+  }
 
   Future<void> sendResetLink(String email) async {
     if (state.submitting) return;
@@ -174,6 +258,6 @@ class ForgotPasswordNotifier extends AutoDisposeNotifier<ForgotPasswordState> {
 
     }
 
-    state = ForgotPasswordState(sentToEmail: email.trim());
+    if (_isActive) state = ForgotPasswordState(sentToEmail: email.trim());
   }
 }

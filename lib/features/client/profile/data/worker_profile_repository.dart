@@ -30,6 +30,16 @@ class WorkerProfileRepository {
     }, SetOptions(merge: true));
   }
 
+  Future<void> updateAvailability({
+    required String uid,
+    required bool isOpen,
+  }) {
+    return _firestore.workerDoc(uid).set({
+      'isOpen': isOpen,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<String> uploadAvatar({
     required String uid,
     required File file,

@@ -33,7 +33,6 @@ class OnboardingPageData {
   final bool showSkip;
 }
 
-/// Owner: Onboarding team (Feature 1)
 ///
 /// Badge positions come from [OnboardingLayout], measured directly from
 /// the Figma export. All 3 pages share that exact geometry — only the

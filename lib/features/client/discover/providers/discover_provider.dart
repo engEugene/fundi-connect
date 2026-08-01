@@ -69,13 +69,14 @@ final discoverFilterProvider =
 
 
 
-final categoriesStreamProvider = StreamProvider<List<Category>>((ref) {
+final categoriesStreamProvider =
+    StreamProvider.autoDispose<List<Category>>((ref) {
   final repo = ref.watch(discoverRepositoryProvider);
   return repo.watchCategories();
 });
 
 
-final _rawWorkersProvider = StreamProvider<List<Worker>>((ref) {
+final workersListProvider = StreamProvider<List<Worker>>((ref) {
   final filters = ref.watch(discoverFilterProvider);
   final repo = ref.watch(discoverRepositoryProvider);
   return repo.watchWorkers(
@@ -87,7 +88,7 @@ final _rawWorkersProvider = StreamProvider<List<Worker>>((ref) {
 
 final discoverWorkersProvider = Provider<AsyncValue<List<Worker>>>((ref) {
   final filters = ref.watch(discoverFilterProvider);
-  final rawAsync = ref.watch(_rawWorkersProvider);
+  final rawAsync = ref.watch(workersListProvider);
 
   return rawAsync.whenData((workers) {
     var result = workers;

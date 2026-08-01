@@ -9,8 +9,8 @@ import '../../../../core/models/worker.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/review_card.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../client/profile/providers/profile_provider.dart';
 import '../../../reviews/providers/review_providers.dart';
-import '../data/profile_mock.dart';
 
 /// Tradesman Profile tab.
 ///
@@ -21,13 +21,18 @@ class TradesmanProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ProfileMock.currentUser;
+    final profileAsync = ref.watch(workerProfileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('My Profile'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push(RouteNames.settings),
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit Profile',
@@ -36,59 +41,134 @@ class TradesmanProfileScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ProfileHeader(user: user),
-              const SizedBox(height: 20),
-              _StatsRow(user: user),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => context.push(RouteNames.editProfile),
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit Profile'),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text('About', style: AppTextStyles.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                user.about ??
-                    '${user.role} with ${user.yearsExp ?? 0}+ years experience.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (user.pastWorkUrls.isNotEmpty) ...[
-                Text('Past Work', style: AppTextStyles.titleMedium),
-                const SizedBox(height: 12),
-                _PastWorkRow(imageUrls: user.pastWorkUrls),
-                const SizedBox(height: 24),
-              ],
-              Text('Reviews', style: AppTextStyles.titleMedium),
-              const SizedBox(height: 12),
-              const _ReceivedReviews(),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await ref.read(authProvider.notifier).signOut();
-                  if (context.mounted) context.go(RouteNames.onboarding);
-                },
-                icon: const Icon(Icons.logout, size: 20),
-                label: const Text('Log Out'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                ),
-              ),
-            ],
+        child: profileAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
           ),
+          error: (_, _) => const Center(
+            child: Text('Could not load your profile.'),
+          ),
+          data: (profile) {
+            final user = profile ??
+                Worker(
+                  id: ref.read(authProvider).authenticatedUser?.uid ?? '',
+                  name:
+                      ref.read(authProvider).authenticatedUser?.displayName ??
+                          'Tradesman',
+                  role: 'Tradesman',
+                  category: '',
+                  imageUrl: '',
+                  rating: 0,
+                  reviewCount: 0,
+                  distanceKm: 0,
+                  hourlyRate: 0,
+                  district: 'Kigali',
+                );
+            return _ProfileBody(user: user);
+          },
         ),
+      ),
+    );
+  }
+}
+
+class _ProfileBody extends StatelessWidget {
+  const _ProfileBody({required this.user});
+
+  final Worker user;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ProfileHeader(user: user),
+          const SizedBox(height: 20),
+          _StatsRow(user: user),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => context.push(RouteNames.editProfile),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit Profile'),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text('About', style: AppTextStyles.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            user.about ??
+                '${user.role} with ${user.yearsExp ?? 0}+ years experience.',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (user.pastWorkUrls.isNotEmpty) ...[
+            Text('Past Work', style: AppTextStyles.titleMedium),
+            const SizedBox(height: 12),
+            _PastWorkRow(imageUrls: user.pastWorkUrls),
+            const SizedBox(height: 24),
+          ],
+          Text('Reviews', style: AppTextStyles.titleMedium),
+          const SizedBox(height: 12),
+          Consumer(
+            builder: (context, ref, _) {
+              final reviewsAsync = ref.watch(workerReviewsProvider(user.id));
+              return reviewsAsync.when(
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                ),
+                error: (_, _) => Text(
+                  'Could not load your reviews.',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                data: (reviews) {
+                  if (reviews.isEmpty) {
+                    return Text(
+                      'No reviews yet. They will appear here after clients rate your completed jobs.',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final review in reviews)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: ReviewCard(review: review),
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Consumer(
+            builder: (context, ref, _) => OutlinedButton.icon(
+              onPressed: () async {
+                await ref.read(authProvider.notifier).signOut();
+                if (context.mounted) context.go(RouteNames.onboarding);
+              },
+              icon: const Icon(Icons.logout, size: 20),
+              label: const Text('Log Out'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -162,7 +242,7 @@ class _ProfileHeader extends StatelessWidget {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        ProfileMock.district,
+                        user.district ?? 'Kigali',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.onPrimary.withValues(alpha: 0.8),
                         ),

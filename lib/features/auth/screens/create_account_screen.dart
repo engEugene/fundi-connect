@@ -58,6 +58,21 @@ class _CreateAccountState extends ConsumerState<CreateAccountScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+
+    final user = await ref
+        .read(signUpFormProvider.notifier)
+        .signInWithGoogle();
+
+    if (!mounted || user == null) return;
+    if (user.emailVerified) {
+      context.go(RouteNames.home);
+    } else {
+      context.push(RouteNames.verifyEmail);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final form = ref.watch(signUpFormProvider);
@@ -138,6 +153,14 @@ class _CreateAccountState extends ConsumerState<CreateAccountScreen> {
                   label: 'Create Account',
                   loading: busy,
                   onPressed: _submit,
+                ),
+                const SizedBox(height: 24),
+                const AuthDivider(),
+                const SizedBox(height: 24),
+                GoogleSignInButton(
+                  loading: form.googleSubmitting,
+                  enabled: !form.submitting,
+                  onPressed: _signInWithGoogle,
                 ),
                 const SizedBox(height: 8),
                 AuthFooterPrompt(

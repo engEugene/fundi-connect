@@ -49,8 +49,13 @@ class VerifyEmailNotifier extends AutoDisposeNotifier<VerifyEmailState> {
   Timer? _cooldownTimer;
   static const int _cooldownSeconds = 60;
 
+  bool _disposed = false;
+
+  bool get _isActive => !_disposed;
+
   @override
   VerifyEmailState build() {
+    ref.onDispose(() => _disposed = true);
     final user = ref.read(authProvider).authenticatedUser;
     ref.onDispose(() => _cooldownTimer?.cancel());
     _sendInitialEmail();
@@ -69,17 +74,21 @@ class VerifyEmailNotifier extends AutoDisposeNotifier<VerifyEmailState> {
   }
 
   Future<void> _sendEmail() async {
+    if (!_isActive) return;
     state = state.copyWith(sending: true, error: null);
     try {
       await _repository.sendEmailVerification();
+      if (!_isActive) return;
       state = state.copyWith(
         sending: false,
         resentCooldownSeconds: _cooldownSeconds,
       );
       _startCooldown();
     } on AuthException catch (e) {
+      if (!_isActive) return;
       state = state.copyWith(sending: false, error: e.message);
     } catch (_) {
+      if (!_isActive) return;
       state = state.copyWith(
         sending: false,
         error: 'Could not send verification email. Please try again.',
@@ -102,15 +111,18 @@ class VerifyEmailNotifier extends AutoDisposeNotifier<VerifyEmailState> {
 
     try {
       final user = await _repository.reloadEmailVerificationStatus();
+      if (!_isActive) return false;
       state = state.copyWith(checking: false);
       if (user == null) return false;
 
       ref.read(authProvider.notifier).signIn(user);
       return user.emailVerified;
     } on AuthException catch (e) {
+      if (!_isActive) return false;
       state = state.copyWith(checking: false, error: e.message);
       return false;
     } catch (_) {
+      if (!_isActive) return false;
       state = state.copyWith(
         checking: false,
         error: 'Could not check verification status. Please try again.',
