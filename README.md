@@ -1,5 +1,5 @@
 # Fundi Connect
-
+ksngksgn
 **Fundi Connect** is a Flutter marketplace app that connects clients with verified
 tradesmen (fundis) in Rwanda. Clients discover tradesmen by trade and price,
 book jobs with a date, time and location, and pay by mobile money. Tradesmen
